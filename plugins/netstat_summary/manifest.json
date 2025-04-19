@@ -1,0 +1,6 @@
+{
+  "name": "Netstat Summary",
+  "type": "tool",
+  "module": "netstat_summary",
+  "description": "Summarize listening TCP/UDP ports using netstat"
+}

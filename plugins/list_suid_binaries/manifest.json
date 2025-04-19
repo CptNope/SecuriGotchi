@@ -1,0 +1,7 @@
+{
+  "name": "List SUID Binaries",
+  "type": "mission",
+  "module": "list_suid_binaries",
+  "description": "Find files with SUID permission for privilege escalation",
+  "xp_reward": 35
+}

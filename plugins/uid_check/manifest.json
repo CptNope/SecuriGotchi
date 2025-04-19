@@ -1,0 +1,6 @@
+{
+  "name": "UID Check",
+  "type": "tool",
+  "module": "uid_check",
+  "description": "List all users with UID < 1000 (potential system/service accounts)"
+}

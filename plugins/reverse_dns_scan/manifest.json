@@ -1,0 +1,7 @@
+{
+  "name": "Reverse DNS Scan",
+  "type": "mission",
+  "module": "reverse_dns_scan",
+  "description": "Perform reverse DNS lookup for subnet hosts",
+  "xp_reward": 25
+}

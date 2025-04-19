@@ -1,0 +1,6 @@
+{
+  "name": "Check Env Vars",
+  "type": "tool",
+  "module": "check_env_vars",
+  "description": "Print useful environment variables and paths"
+}
