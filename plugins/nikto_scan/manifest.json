@@ -1,0 +1,7 @@
+{
+  "name": "Nikto Web Scan",
+  "type": "mission",
+  "module": "nikto_runner",
+  "description": "Scans a local web server with Nikto.",
+  "xp_reward": 40
+}

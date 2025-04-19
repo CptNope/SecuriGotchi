@@ -1,0 +1,6 @@
+{
+  "name": "Trace Route",
+  "type": "tool",
+  "module": "trace_tool",
+  "description": "Perform a traceroute to a domain."
+}

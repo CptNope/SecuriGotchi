@@ -1,0 +1,7 @@
+{
+  "name": "Metasploit Basic Scan",
+  "type": "mission",
+  "module": "probe_runner",
+  "description": "Launches a Metasploit auxiliary scanner on a subnet.",
+  "xp_reward": 50
+}

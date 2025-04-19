@@ -1,0 +1,7 @@
+{
+  "name": "Nmap Top Ports",
+  "type": "mission",
+  "module": "nmap_top_ports",
+  "description": "Scans the top 1000 ports of the local subnet.",
+  "xp_reward": 25
+}

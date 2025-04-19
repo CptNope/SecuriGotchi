@@ -1,0 +1,6 @@
+{
+  "name": "WHOIS Lookup",
+  "type": "tool",
+  "module": "whois_tool",
+  "description": "Look up WHOIS information for a domain."
+}
