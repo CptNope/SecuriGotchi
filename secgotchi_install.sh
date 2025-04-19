@@ -11,7 +11,7 @@ sudo apt update && sudo apt install -y \
 
 echo "🐍 Installing Python libraries..."
 pip3 install --upgrade pip
-pip3 install langchain chromadb
+pip3 install langchain chromadb sentence-transformers
 
 # Clone the GitHub repo
 if [ ! -d "SecuriGotchi" ]; then
@@ -53,11 +53,8 @@ if ! gpg --list-keys | grep -q sec; then
     gpg --full-generate-key
 fi
 
-# Create symlink (optional)
-echo "🔗 Linking gotchi_memory.py as 'gotchi-log' command..."
+# Create CLI shortcut
+echo "🔗 Linking gotchi-log..."
 sudo ln -sf $(pwd)/gotchi_memory.py /usr/local/bin/gotchi-log
 
-echo "✅ Installation complete."
-echo ""
-echo "Try this:"
-echo "  gotchi-log 'SecuriGotchi installed on Ubuntu' 20"
+echo "✅ SecuriGotchi installation complete with RAG + vector search."

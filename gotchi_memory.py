@@ -22,7 +22,7 @@ def add_memory(action, xp=0):
     brain["xp"] += xp
     brain["level"] = 1 + brain["xp"] // 100
     save_brain(brain)
-    append_to_chain(action, xp)
+    append_to_chain(action, xp)\n    from gotchi_vector import add_memory_to_vector\n    add_memory_to_vector(action)
     log_change(f"{action} (+{xp} XP)")
     print(f"Memory added: {action} (+{xp} XP)")
 
