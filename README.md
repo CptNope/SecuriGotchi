@@ -1,6 +1,6 @@
-# SecuriGotchi: Cybersecurity Companion with Blockchain Memory & Modular Plugins
+# SecuriGotchi: Cybersecurity Companion with Blockchain Memory, RAG, and Modular Plugins
 
-SecuriGotchi is a cyberpunk-inspired, terminal-based AI companion designed to run on Raspberry Pi with Kali Linux. It combines gamified missions, diagnostics, AI chat, and immutable memory logging via a blockchain-style chain—with GPG signing and modular plugin support.
+**SecuriGotchi** is a cyberpunk-inspired, terminal-based AI companion designed to run on Raspberry Pi, Ubuntu, or WSL with Kali Linux. It combines **gamified missions**, **diagnostics**, **AI chat**, and **immutable blockchain-style memory logging** — now enhanced with **vector search + RAG (Retrieval-Augmented Generation)** for intelligent memory recall.
 
 ---
 
@@ -8,15 +8,16 @@ SecuriGotchi is a cyberpunk-inspired, terminal-based AI companion designed to ru
 
 | Feature                      | Description                                                                 |
 |------------------------------|-----------------------------------------------------------------------------|
-| 🧠 Memory + XP               | Earn XP and track progress with persistent state                            |
-| 🔗 Blockchain Memory         | Immutable chain (`gotchi_chain.json`) of XP events                         |
-| ✍️ GPG Signing               | Cryptographically signed chain using GPG (`.sig` file)                      |
-| 📜 Memory Changelog          | Human-readable memory entries (`gotchi_memory_changelog.txt`)              |
-| ⚙️ Modular Plugin System     | Easily drop in tools or missions to expand Gotchi’s abilities              |
-| 🧩 Missions + Tools          | Mix of scanning, monitoring, recon, and reporting capabilities             |
-| 🔒 Mode Levels               | Observer → Full-Control autonomy system                                     |
-| 📊 System Diagnostics        | Built-in RAM, CPU, disk, and open port reports                              |
-| ⚠️ Threat Monitor            | Watches `/var/log/auth.log` for brute-force and sudo misuse attempts       |
+| 🧠 Memory + XP               | Earn XP and track progress with persistent JSON state                       |
+| 🔗 Blockchain Memory         | Immutable memory ledger (`gotchi_chain.json`) with SHA-256 chaining        |
+| ✍️ GPG Signing               | Cryptographically signs the memory chain (`gotchi_chain.json.sig`)         |
+| 📜 Memory Changelog          | Human-readable XP log (`gotchi_memory_changelog.txt`)                      |
+| 🧩 Modular Plugin System     | Drop-in tools and missions extend Gotchi’s abilities                        |
+| 🔍 Vector Search (ChromaDB)  | Store and query memory embeddings for similarity retrieval                  |
+| 🧠 RAG Memory Recall         | Ask questions and receive contextual memory-based answers                   |
+| 🔒 Mode Levels               | Observer → Full-Control autonomy with XP-based access                       |
+| ⚠️ Threat Monitor            | Monitors `/var/log/auth.log` for intrusion attempts                         |
+| 📊 System Diagnostics        | View CPU, RAM, disk, and open ports in terminal                             |
 
 ---
 
@@ -24,80 +25,88 @@ SecuriGotchi is a cyberpunk-inspired, terminal-based AI companion designed to ru
 
 ```
 .
-├── gotchi_brain.json             # Core memory + XP + mode
-├── gotchi_chain.json             # Immutable blockchain-style XP ledger
+├── gotchi_brain.json             # Core XP, memory, and autonomy mode
+├── gotchi_chain.json             # Blockchain-style immutable XP ledger
 ├── gotchi_chain.json.sig         # GPG signature of chain
-├── gotchi_chain.py               # Blockchain logic + validation + signing
-├── gotchi_memory.py              # XP entry + changelog integration
-├── gotchi_memory_changelog.txt   # Human-readable log
+├── gotchi_chain.py               # Chain logic + GPG sign/verify
+├── gotchi_memory.py              # Adds memory, XP, vector, and changelog
+├── gotchi_memory_changelog.txt   # Human-readable log of memory entries
+├── gotchi_vector.py              # Embedding + vector store operations (ChromaDB)
+├── gotchi_query.py               # Ask questions via vector + RAG
+├── secgotchi_install.sh          # Universal installer (Ubuntu/WSL/RPi)
 ├── README.md                     # You're reading it
 ```
+
+---
+
+## 🧠 New AI Features (Vector + RAG)
+
+- All memory entries are embedded and stored in a **vector database**
+- Use `gotchi_query.py` to search memory by meaning, not keywords:
+
+```bash
+python gotchi_query.py "What scans did I run this week?"
+```
+
+- Returns top 3 matches with context-aware results (powered by SentenceTransformers)
+- Can integrate with Ollama to generate full natural language responses (optional)
 
 ---
 
 ## 🧩 Plugin Scope Overview
 
 ### 🔍 Recon & Scanning
-
-- **Metasploit Basic Scan**: Portscan via msfconsole
-- **Nikto Web Scan**: Detect web vulns on localhost
-- **Nmap Top Ports**: Scan top 1000 ports on subnet
-- **Reverse DNS Scan**: `nmap -sL` lookup by IP range
-
----
+- `Metasploit Basic Scan`  
+- `Nikto Web Scan`  
+- `Nmap Top Ports`  
+- `Reverse DNS Scan`
 
 ### 📡 System Diagnostics
-
-- **Netstat Summary**: TCP/UDP port summary
-- **Fail2Ban Status**: View active jails and blocks
-- **UID Check**: Show users with UID < 1000
-- **Environment Vars**: Dump common env variables
-
----
+- `Netstat Summary`  
+- `Fail2Ban Status`  
+- `UID Check`  
+- `Environment Vars`
 
 ### 🛡 Security + Hardening
-
-- **List SUID Binaries**: Find files with `suid` bit
-- **SSH Honeypot Check**: Look for brute-force login attempts
-- **User Enumeration**: List user logins and accounts
-
----
+- `List SUID Binaries`  
+- `SSH Honeypot Check`  
+- `User Enumeration`
 
 ### 🧪 Tools
-
-- **WHOIS Lookup**: Domain metadata
-- **Traceroute Tool**: Route path analysis
-- **GeoIP Lookup**: IP geolocation
-- **TCPDump Sniffer**: Live packet capture
+- `WHOIS Lookup`  
+- `Traceroute Tool`  
+- `GeoIP Lookup`  
+- `TCPDump Sniffer`
 
 ---
 
 ## ✅ GPG Setup
 
-1. Run this once:
+Run once:
 ```bash
 gpg --full-generate-key
 gpg --list-keys
 ```
 
-2. Every XP entry gets:
-- Added to `gotchi_brain.json`
-- Appended to `gotchi_chain.json`
+All XP entries are:
+- Logged to `gotchi_brain.json`
+- Added to `gotchi_chain.json`
 - Signed to `gotchi_chain.json.sig`
-- Logged to `gotchi_memory_changelog.txt`
+- Logged in `gotchi_memory_changelog.txt`
+- Embedded into the vector DB
 
 ---
 
-## 🔍 Validating the Chain
+## 🔍 Validate the Memory Chain
 
 ```bash
 gpg --verify gotchi_chain.json.sig gotchi_chain.json
 ```
 
-Or in Python:
+Or:
 ```python
 from gotchi_chain import validate_chain
-print(validate_chain())  # Should return True
+print(validate_chain())
 ```
 
 ---
@@ -112,12 +121,13 @@ python gotchi_memory.py "Completed SSH Audit" 25
 
 ## 🧱 Future Features (Planned)
 
-- 🌐 Remote syncing over Git
-- 🌎 Public gotchi identity keys
-- 📦 Package installer (`.deb`)
-- 🕸 Web dashboard (Flask UI)
-- 🧠 LLM model checkpointing / fine-tuning logs
+- 🌐 Remote syncing via Git or API
+- 🔑 Public key identity system for verifiable Gotchis
+- 📦 `.deb` and `.img` install packages
+- 🧠 Ollama-based conversation agent (LLM)
+- 🕸 Web dashboard with mission logs, threat stats, and gotchi health
 
 ---
 
-Built by [Jeremy Anderson](https://jeremyanderson.tech) | GitHub: [CptNope](https://github.com/CptNope)
+Built by [Jeremy Anderson](https://jeremyanderson.tech)  
+GitHub: [CptNope/SecuriGotchi](https://github.com/CptNope/SecuriGotchi)
