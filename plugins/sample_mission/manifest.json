@@ -1,0 +1,7 @@
+{
+  "name": "Basic Network Scan Mission",
+  "type": "mission",
+  "module": "basic_scan",
+  "description": "Runs a basic nmap scan on 192.168.1.0/24",
+  "xp_reward": 20
+}

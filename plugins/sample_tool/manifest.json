@@ -1,0 +1,6 @@
+{
+  "name": "Echo Tool",
+  "type": "tool",
+  "module": "echo_tool",
+  "description": "Echoes input back to the user"
+}
