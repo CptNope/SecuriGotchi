@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "title": "Scan Your Local Network",
+    "command": "nmap -T4 -A 192.168.1.0/24",
+    "xp_reward": 25,
+    "completed": false
+  },
+  {
+    "id": 2,
+    "title": "Check Running Services",
+    "command": "ss -tuln",
+    "xp_reward": 15,
+    "completed": false
+  },
+  {
+    "id": 3,
+    "title": "Tail Auth Log",
+    "command": "tail /var/log/auth.log",
+    "xp_reward": 10,
+    "completed": false
+  }
+]
