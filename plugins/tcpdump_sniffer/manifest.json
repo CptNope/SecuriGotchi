@@ -1,0 +1,6 @@
+{
+  "name": "TCPDump Sniffer",
+  "type": "tool",
+  "module": "tcpdump_sniffer",
+  "description": "Live capture packets with a BPF filter (15s capture)"
+}

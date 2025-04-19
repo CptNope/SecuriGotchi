@@ -1,0 +1,6 @@
+{
+  "name": "GeoIP Lookup",
+  "type": "tool",
+  "module": "geoip_lookup",
+  "description": "Returns geographic location of an IP using geoiplookup"
+}

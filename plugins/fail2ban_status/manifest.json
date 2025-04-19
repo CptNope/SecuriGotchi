@@ -1,0 +1,6 @@
+{
+  "name": "Fail2Ban Status",
+  "type": "tool",
+  "module": "fail2ban_status",
+  "description": "View active jails and fail2ban stats"
+}

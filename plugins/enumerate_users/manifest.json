@@ -1,0 +1,7 @@
+{
+  "name": "User Enumeration",
+  "type": "mission",
+  "module": "enumerate_users",
+  "description": "List user accounts and login activity",
+  "xp_reward": 20
+}

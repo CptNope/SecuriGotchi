@@ -1,0 +1,7 @@
+{
+  "name": "SSH Honeypot Check",
+  "type": "mission",
+  "module": "ssh_honeypot_check",
+  "description": "Detect brute-force login attempts via auth.log",
+  "xp_reward": 30
+}
