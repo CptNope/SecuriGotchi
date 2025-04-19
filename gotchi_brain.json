@@ -1,15 +1,12 @@
 {
-  "xp": 300,
-  "level": 4,
-  "last_command": "AI log analysis",
-  "memory_log": [
-    "Threat detected: SSH brute-force",
-    "AI answered a log summary question"
-  ],
-  "notes": "Now with memory and AI assistant!",
+  "xp": 0,
+  "level": 1,
+  "last_command": "",
+  "memory_log": [],
+  "notes": "Blockchain memory enabled",
   "mode": {
-    "name": "standard",
-    "autonomy_level": 2,
+    "name": "observer",
+    "autonomy_level": 0,
     "confirm_commands": true,
     "allow_sudo": false
   }

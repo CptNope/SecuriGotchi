@@ -1,216 +1,123 @@
-# SecuriGotchi
+# SecuriGotchi: Cybersecurity Companion with Blockchain Memory & Modular Plugins
 
-![version](https://img.shields.io/badge/version-1.4-blue) ![build](https://img.shields.io/badge/build-passing-brightgreen) ![platform](https://img.shields.io/badge/platform-RaspberryPi4–Kali-black) ![license](https://img.shields.io/github/license/CptNope/SecuriGotchi) ![autonomy](https://img.shields.io/badge/mode-dynamic-yellow)
-
-SecuriGotchi is a **cyberpunk-inspired, terminal-based AI companion** built for cybersecurity operations, training, and monitoring on a Raspberry Pi 4B with a 3.5” touchscreen. It combines **ANSI art**, **gamified missions**, **persistent memory**, **AI assistance**, and **real-world tools** into a single package.
+SecuriGotchi is a cyberpunk-inspired, terminal-based AI companion designed to run on Raspberry Pi with Kali Linux. It combines gamified missions, diagnostics, AI chat, and immutable memory logging via a blockchain-style chain—with GPG signing and modular plugin support.
 
 ---
 
-## Table of Contents
+## 📦 Key Features
 
-1. [Introduction](#introduction)
-2. [Features](#features)
-3. [Architecture](#architecture)
-4. [Requirements](#requirements)
-5. [Installation](#installation)
-6. [Quick Start](#quick-start)
-7. [Core Commands](#core-commands)
-8. [Configuration Files](#configuration-files)
-9. [Missions & XP System](#missions--xp-system)
-10. [Plugin System](#plugin-system)
-11. [Autonomy Modes](#autonomy-modes)
-12. [Memory & AI Assistant](#memory--ai-assistant)
-13. [Threat Monitoring](#threat-monitoring)
-14. [Diagnostics Panel](#diagnostics-panel)
-15. [Boot-to-Terminal](#boot-to-terminal)
-16. [Contributing](#contributing)
-17. [Troubleshooting](#troubleshooting)
-18. [License](#license)
+| Feature                      | Description                                                                 |
+|------------------------------|-----------------------------------------------------------------------------|
+| 🧠 Memory + XP               | Earn XP and track progress with persistent state                            |
+| 🔗 Blockchain Memory         | Immutable chain (`gotchi_chain.json`) of XP events                         |
+| ✍️ GPG Signing               | Cryptographically signed chain using GPG (`.sig` file)                      |
+| 📜 Memory Changelog          | Human-readable memory entries (`gotchi_memory_changelog.txt`)              |
+| ⚙️ Modular Plugin System     | Easily drop in tools or missions to expand Gotchi’s abilities              |
+| 🧩 Missions + Tools          | Mix of scanning, monitoring, recon, and reporting capabilities             |
+| 🔒 Mode Levels               | Observer → Full-Control autonomy system                                     |
+| 📊 System Diagnostics        | Built-in RAM, CPU, disk, and open port reports                              |
+| ⚠️ Threat Monitor            | Watches `/var/log/auth.log` for brute-force and sudo misuse attempts       |
 
 ---
 
-## Introduction
-
-SecuriGotchi brings the nostalgia of terminal pets into modern cybersecurity workflows. It watches your logs, runs scans, tracks missions, learns from interactions, and evolves visually—all powered by **Python**, **LangChain**, **ChromaDB**, and **Ollama**.
-
-## Features
-
-- 🛡 **Real-World Tools**: integrates `nmap`, `ss`, `tail`, `fail2ban`, and more.
-- 🎯 **Missions & XP**: complete tasks like network scans to earn experience points and level up.
-- 🧠 **Persistent Memory**: stores past interactions and logs in a vector store for AI-powered recall.
-- 🤖 **AI Assistant**: chat with Gotchi via Ollama LLM for log analysis, explanations, and guidance.
-- 💾 **Plugin System**: extend SecuriGotchi with custom missions and tools without modifying core code.
-- 🌈 **ANSI Art Evolution**: dynamic avatars change based on mode and XP level.
-- 🚀 **Boot-to-Terminal**: auto-start on boot with systemd for headless operation.
-- ⚡ **Threat Monitoring**: live log watcher detects SSH brute-force and sudo misuse events.
-- 📊 **Diagnostics Panel**: view CPU, RAM, disk usage, and open ports in a retro HUD style.
-
-## Architecture
+## 📂 Directory Overview
 
 ```
-[ Terminal UI ]       ← console / touchscreen
-        ↓
-[ gotchi_agent.py ]   → runs core loop, avatars, input handling
-        ↓
-[ plugin_manager.py ] → discovers and loads mission/tool plugins
-        ↓            ↘
-[ gotchi_mission.py ]   [ plugin_runner.py ] → executes plugins with XP rewards
-        ↓
-[ gotchi_brain.json ]  ↔ persistent JSON memory
-[ gotchi_memory.py]    ↔ CLI for viewing/editing memory & modes
-[ gotchi_ai_config.json ] → AI system prompts & model settings
-[ Chroma Vector DB ]   → stores embeddings of logs and AI chats
-[ threat_watcher.py ]  → live log monitoring
-[ diag_panel.py ]      → diagnostics HUD
-[ install.sh ]         → installer script
-[ secgotchi.service ]  → systemd autostart unit
+.
+├── gotchi_brain.json             # Core memory + XP + mode
+├── gotchi_chain.json             # Immutable blockchain-style XP ledger
+├── gotchi_chain.json.sig         # GPG signature of chain
+├── gotchi_chain.py               # Blockchain logic + validation + signing
+├── gotchi_memory.py              # XP entry + changelog integration
+├── gotchi_memory_changelog.txt   # Human-readable log
+├── README.md                     # You're reading it
 ```
 
-## Requirements
+---
 
-- **Hardware**: Raspberry Pi 4B (8GB) + 3.5” touchscreen
-- **OS**: Kali Linux (minimal / headless optional)
-- **Python 3.10+**
-- **Dependencies**:
-  - `pip install langchain chromadb`
-  - `pip install ollama-tools` (if available)
-- **CLI Tools**: `nmap`, `ss`/`netstat`, `tail`, `chafa` or `ansilove`, `fbi` (optional)
+## 🧩 Plugin Scope Overview
 
-## Installation
+### 🔍 Recon & Scanning
+
+- **Metasploit Basic Scan**: Portscan via msfconsole
+- **Nikto Web Scan**: Detect web vulns on localhost
+- **Nmap Top Ports**: Scan top 1000 ports on subnet
+- **Reverse DNS Scan**: `nmap -sL` lookup by IP range
+
+---
+
+### 📡 System Diagnostics
+
+- **Netstat Summary**: TCP/UDP port summary
+- **Fail2Ban Status**: View active jails and blocks
+- **UID Check**: Show users with UID < 1000
+- **Environment Vars**: Dump common env variables
+
+---
+
+### 🛡 Security + Hardening
+
+- **List SUID Binaries**: Find files with `suid` bit
+- **SSH Honeypot Check**: Look for brute-force login attempts
+- **User Enumeration**: List user logins and accounts
+
+---
+
+### 🧪 Tools
+
+- **WHOIS Lookup**: Domain metadata
+- **Traceroute Tool**: Route path analysis
+- **GeoIP Lookup**: IP geolocation
+- **TCPDump Sniffer**: Live packet capture
+
+---
+
+## ✅ GPG Setup
+
+1. Run this once:
+```bash
+gpg --full-generate-key
+gpg --list-keys
+```
+
+2. Every XP entry gets:
+- Added to `gotchi_brain.json`
+- Appended to `gotchi_chain.json`
+- Signed to `gotchi_chain.json.sig`
+- Logged to `gotchi_memory_changelog.txt`
+
+---
+
+## 🔍 Validating the Chain
 
 ```bash
-git clone https://github.com/CptNope/SecuriGotchi.git
-cd SecuriGotchi
-chmod +x install.sh
-./install.sh
+gpg --verify gotchi_chain.json.sig gotchi_chain.json
 ```
 
-The installer will:
-- Update system packages
-- Install Python dependencies
-- Install ANSI renderer (`chafa` or `ansilove`)
-- Copy `secgotchi.service` to `/etc/systemd/system/`
-- Enable and start the service (optional)
-- Symlink `gotchi_agent.py` to `/usr/local/bin/gotchi`
+Or in Python:
+```python
+from gotchi_chain import validate_chain
+print(validate_chain())  # Should return True
+```
 
-## Quick Start
+---
 
-After installation, you can launch SecuriGotchi with:
+## 🚀 Add an XP Entry
 
 ```bash
-gotchi               # Interactive main agent
-gotchi diag          # Diagnostics panel
-gotchi watch         # Start threat monitor
-gotchi memory view   # View brain memory and XP
-gotchi memory edit   # Manually edit memory & modes
-gotchi mission list  # List available missions
-gotchi mission run 1 # Run mission ID 1 and earn XP
-python plugin_runner.py # Load and run plugins
+python gotchi_memory.py "Completed SSH Audit" 25
 ```
 
-## Core Commands
+---
 
-| Command                     | Description                                      |
-|-----------------------------|--------------------------------------------------|
-| `gotchi`                    | Launch main AI-assisted terminal companion       |
-| `gotchi diag`               | Show CPU, RAM, disk, and open ports              |
-| `gotchi watch`              | Start live threat log monitoring                 |
-| `gotchi memory view`        | Display `gotchi_brain.json` contents             |
-| `gotchi memory edit`        | Edit memory & modes in your preferred editor     |
-| `gotchi mission list`       | List all missions from `missions.json`           |
-| `gotchi mission run <id>`   | Execute mission command & award XP               |
-| `python plugin_runner.py`   | List and execute plugins (missions & tools)      |
+## 🧱 Future Features (Planned)
 
-## Configuration Files
+- 🌐 Remote syncing over Git
+- 🌎 Public gotchi identity keys
+- 📦 Package installer (`.deb`)
+- 🕸 Web dashboard (Flask UI)
+- 🧠 LLM model checkpointing / fine-tuning logs
 
-- **`gotchi_brain.json`**: stores XP, level, memory logs, mode
-- **`gotchi_ai_config.json`**: Ollama model settings (model, temperature, system_prompt)
-- **`missions/missions.json`**: mission definitions (id, title, command, xp_reward)
+---
 
-## Missions & XP System
-
-Missions are defined in `missions/missions.json`. Each mission has:
-```json
-{
-  "id": 1,
-  "title": "Scan Your Local Network",
-  "command": "nmap -T4 -A 192.168.1.0/24",
-  "xp_reward": 25,
-  "completed": false
-}
-```
-Use `gotchi mission list` and `gotchi mission run <id>` to execute and track progress. XP is automatically added to your brain memory.
-
-## Plugin System
-
-Drop plugins into the `plugins/` directory. Each plugin must have:
-- `manifest.json` with:
-  - `name`: string
-  - `type`: "mission" or "tool"
-  - `module`: name of the .py file
-  - `description`: string
-  - `xp_reward` (for missions): integer
-- `<module>.py` implementing a `run()` function.
-
-Use:
-```bash
-python plugin_runner.py
-```
-to discover and run plugins.
-
-## Autonomy Modes
-
-| Mode         | Level | Confirm ✓ | Sudo ⚠ |
-|--------------|-------|-----------|--------|
-| observer     | 0     | No        | No     |
-| training     | 1     | Yes       | No     |
-| standard     | 2     | Yes       | No     |
-| full-control | 3     | No        | Yes    |
-
-Switch modes:
-```bash
-gotchi memory mode full-control
-```
-
-## Memory & AI Assistant
-
-Use **LangChain** + **Ollama** for AI chats and memory:
-- **Store Memory**: interactions embedded and saved
-- **Chat**: `python gotchi_agent.py`
-- **Config**: `gotchi_ai_config.json`
-
-## Threat Monitoring
-
-`gotchi watch` runs `threat_watcher.py`:
-- Tails `/var/log/auth.log`
-- Detects SSH failures & sudo misuse
-- Logs events to memory and awards XP
-
-## Diagnostics Panel
-
-`gotchi diag` runs `diag_panel.py`, displaying system stats.
-
-## Boot-to-Terminal
-
-Enable auto-start:
-```bash
-sudo systemctl enable secgotchi.service
-```
-
-## Contributing
-
-1. Fork the repo
-2. Create a branch (`git checkout -b feature/foo`)
-3. Commit (`git commit -am 'Add feature'`)
-4. Push (`git push origin feature/foo`)
-5. Open a PR
-
-## Troubleshooting
-
-- Ensure `gotchi_memory/` exists and is writable
-- Confirm `ollama run llama3` works
-- Run commands with `sudo` in full-control mode only
-
-## License
-
-MIT © 2025 [CptNope](https://github.com/CptNope)
+Built by [Jeremy Anderson](https://jeremyanderson.tech) | GitHub: [CptNope](https://github.com/CptNope)
