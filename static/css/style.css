@@ -1,0 +1,35 @@
+.memory-log {
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.memory-entry {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.memory-entry:hover {
+    background-color: #f8f9fa;
+}
+
+.query-result {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-left: 4px solid #007bff;
+    background-color: #f8f9fa;
+}
+
+.query-result .score {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+#chain-status.valid {
+    color: #28a745;
+}
+
+#chain-status.invalid {
+    color: #dc3545;
+}
