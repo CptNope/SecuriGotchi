@@ -33,3 +33,5 @@ button:focus-visible,input:focus-visible{outline:3px solid #f4b95b;outline-offse
 .monitor-alert span{color:#c8dedc;font-size:.88rem}.level-warning{border-left-color:#e8c46c}.level-high{border-left-color:#f39a55}.level-critical{border-left-color:#ed6a73}
 @keyframes gotchi-idle{50%{transform:translateY(-7px)}}
 @media(prefers-reduced-motion:reduce){.gotchi-sprite{animation:none}}
+
+.trend-chart{display:flex;align-items:flex-end;gap:3px;min-height:92px;padding:10px 0;border-bottom:1px solid #47616c}.trend-bar{flex:1;min-width:2px;background:#62e6b4;border-radius:3px 3px 0 0}

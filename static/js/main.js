@@ -104,7 +104,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   el('refresh-monitor').addEventListener('click', loadMonitor);
+  async function loadTrends() {
+    const chart = el('trend-chart');
+    try {
+      const points = await api('/api/trends');
+      const max = Math.max(1, ...points.map(item => item.failed));
+      chart.replaceChildren();
+      points.forEach(item => {
+        const bar = document.createElement('span');
+        bar.className = 'trend-bar';
+        bar.style.height = Math.max(3, item.failed / max * 76) + 'px';
+        bar.title = item.hour + ': ' + item.failed + ' failures';
+        chart.appendChild(bar);
+      });
+      chart.setAttribute('aria-label', 'Failed logins by hour: ' + points.map(p => p.failed).join(', '));
+    } catch (err) { chart.textContent = 'Trend unavailable'; }
+  }
   loadStatus();
   loadMonitor();
+  loadTrends();
   setInterval(loadMonitor, 30000);
 });

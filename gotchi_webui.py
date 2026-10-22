@@ -11,6 +11,7 @@ from gotchi_chain import validate_blocks, load_chain, verify_signature, CHAIN_FI
 from gotchi_memory import load_brain, changelog_path
 from gotchi_threats import get_snapshot
 from gotchi_monitor import overview
+from gotchi_insights import trends
 
 app = Flask(__name__)
 app.config.update(
@@ -171,6 +172,12 @@ def threats():
 @require_admin
 def monitor_status():
     return jsonify(overview())
+
+
+@app.get("/api/trends")
+@require_admin
+def security_trends():
+    return jsonify(trends(24))
 
 
 if __name__ == "__main__":

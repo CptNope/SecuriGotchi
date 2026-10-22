@@ -122,3 +122,7 @@ GitHub Actions runs core syntax/tests on supported Python versions. Optional AI 
 5. Improve Raspberry Pi touchscreen interface, journald ingestion, severity/rule logic, device-local notification support and continuously collected metrics.
 
 © Jeremy Anderson · [Jeremy Anderson Tech](https://jeremyanderson.tech)
+
+## Phase 7: AI and MCP
+
+A 24-hour aggregated failure chart is available in the signed-in dashboard. Install optional MCP dependencies with `.venv/bin/python -m pip install -r requirements-mcp.txt`, then configure a trusted local client to run `gotchi_mcp.py` with `SECURIGOTCHI_MCP_ENABLE=1` as described in [the MCP guide](docs/mcp.md). For opt-in local, advisory-only Ollama explanations use `.venv/bin/python gotchi_explain.py --model llama3`. No web-triggered model execution or remote cloud AI telemetry is enabled.
