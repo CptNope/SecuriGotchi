@@ -20,6 +20,6 @@ jobs:
       - name: Install core dependencies
         run: python -m pip install -r requirements.txt
       - name: Compile Python modules
-        run: python -m compileall -q gotchi_agent.py gotchi_chain.py gotchi_memory.py gotchi_mission.py gotchi_query.py gotchi_vector.py gotchi_webui.py gotchi_monitor.py plugin_manager.py plugin_runner.py plugins
+        run: python -m compileall -q gotchi_agent.py gotchi_chain.py gotchi_memory.py gotchi_mission.py gotchi_query.py gotchi_vector.py gotchi_webui.py gotchi_monitor.py gotchi_notifications.py gotchi_service.py plugin_manager.py plugin_runner.py plugins
       - name: Unit tests
         run: python -m unittest discover -s tests -v

@@ -5,14 +5,17 @@ The collector never executes plugins, changes firewall rules, or uses sudo.
 Event timestamps are ingestion times, not source-log timestamps.
 """
 import argparse
+import fcntl
 from collections import Counter
 from contextlib import closing
 import os
 from pathlib import Path
 import shutil
+import sys
 import sqlite3
 import stat
 import time
+from contextlib import contextmanager
 
 from gotchi_auth import data_dir
 from gotchi_threats import DEFAULT_LOGS, _source_ip
@@ -297,11 +300,35 @@ def overview(now=None):
     }
 
 
+@contextmanager
+def exclusive_watch_lock():
+    """One active watch loop per user data directory (Linux/WSL)."""
+    lock = data_dir() / "monitor-watch.lock"
+    fd = os.open(
+        lock, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600
+    )
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+            raise RuntimeError("Monitor watch lock must be private and user-owned")
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError("Another monitor watch process is already running") from exc
+        yield
+    finally:
+        os.close(fd)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Read-only SecuriGotchi local monitoring collector")
     parser.add_argument("command", choices=["once", "watch", "status"])
     parser.add_argument("--interval", type=int, default=60, help="Seconds between polls (10-3600)")
+    parser.add_argument("--notify", action="store_true", help="Opt-in desktop notifications (watch only)")
+    parser.add_argument("--notify-level", choices=["warning", "high", "critical"], default="high")
     args = parser.parse_args()
+    if args.notify and args.command != "watch":
+        parser.error("--notify requires the watch command")
     if not 10 <= args.interval <= 3600:
         parser.error("--interval must be between 10 and 3600 seconds")
     if args.command == "status":
@@ -311,11 +338,23 @@ def main():
     if args.command == "once":
         print(run_once())
         return
+    notifier = None
+    if args.notify:
+        import shutil as _shutil
+        if not _shutil.which("notify-send"):
+            parser.error("notify-send is missing. Install libnotify-bin or omit --notify.")
+        from gotchi_notifications import enable_notifications, deliver_pending
+        notifier = deliver_pending
     print("Monitoring locally; Ctrl+C to stop. No firewall or scan operations are performed.")
     try:
-        while True:
-            print(run_once(), flush=True)
-            time.sleep(args.interval)
+        with exclusive_watch_lock():
+            if notifier:
+                enable_notifications()  # Before first poll; no historical alert replay.
+            while True:
+                print(run_once(), flush=True)
+                if notifier:
+                    notifier(min_level=args.notify_level)
+                time.sleep(args.interval)
     except KeyboardInterrupt:
         print("\nCollector stopped.")
 
