@@ -139,7 +139,7 @@ def signing_key():
     descriptor = os.open(path, flags)
     try:
         info = os.fstat(descriptor)
-        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+        if not stat.S_ISREG(info.st_mode) or not _owned_by_me(info) or (os.name != 'nt' and stat.S_IMODE(info.st_mode) & 0o077):
             raise RuntimeError("Signing key must be user-owned and readable only by the owner")
         with os.fdopen(descriptor, "rb") as handle:
             descriptor = -1
