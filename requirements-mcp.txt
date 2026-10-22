@@ -1,1 +1,3 @@
-mcp>=1.9,<3
+# Optional official MCP Python SDK v2; core operation never requires it.
+# Do not mix the v1 FastMCP import path with v2.
+mcp>=2.0,<3
