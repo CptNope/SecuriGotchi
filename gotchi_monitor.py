@@ -20,6 +20,7 @@ from gotchi_auth import data_dir
 from gotchi_platform import system_health
 from gotchi_lock import exclusive_watch_lock
 from gotchi_threats import DEFAULT_LOGS, _source_ip
+from gotchi_native import poll_native, selected_source
 
 MAX_READ_BYTES = 1024 * 1024
 RETENTION_SECONDS = 7 * 86400
@@ -68,6 +69,14 @@ def connect():
             ts INTEGER PRIMARY KEY, disk_percent REAL,
             memory_percent REAL, load_avg REAL
         );
+        CREATE TABLE IF NOT EXISTS native_state (
+            source TEXT PRIMARY KEY, checkpoint TEXT, initialized INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS native_seen (
+            source TEXT NOT NULL, event_key TEXT NOT NULL, seen_ts INTEGER NOT NULL,
+            PRIMARY KEY(source,event_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_native_seen_ts ON native_seen(seen_ts);
         CREATE TABLE IF NOT EXISTS monitor_state (
             id INTEGER PRIMARY KEY CHECK (id=1),
             last_poll INTEGER NOT NULL, log_status TEXT NOT NULL,
@@ -112,6 +121,11 @@ def _select_log(explicit=None):
     return None
 
 
+def _file_device(info):
+    # Windows st_dev may exceed signed 64-bit SQLite INTEGER.
+    return "win:" + str(info.st_dev) if os.name == "nt" else info.st_dev
+
+
 def _consume_new(conn, path):
     """Incremental file read, rotation/truncation aware; commit cursor with events."""
     source = str(path.resolve())
@@ -125,7 +139,7 @@ def _consume_new(conn, path):
         if previous is None:
             # Never interpret old log history as new attacks on first startup.
             start, discontinuity, skipped = info.st_size, False, 0
-        elif previous["device"] != info.st_dev or str(previous["inode"]) != str(info.st_ino) or info.st_size < previous["offset"]:
+        elif str(previous["device"]) != str(_file_device(info)) or str(previous["inode"]) != str(info.st_ino) or info.st_size < previous["offset"]:
             start, discontinuity, skipped = max(0, info.st_size - MAX_READ_BYTES), True, max(0, info.st_size - MAX_READ_BYTES)
         else:
             start, discontinuity, skipped = previous["offset"], False, 0
@@ -153,7 +167,7 @@ def _consume_new(conn, path):
             "INSERT INTO cursors(path,device,inode,offset) VALUES (?,?,?,?) "
             "ON CONFLICT(path) DO UPDATE SET device=excluded.device,"
             "inode=excluded.inode,offset=excluded.offset",
-            (source, info.st_dev, str(info.st_ino), new_offset),
+            (source, _file_device(info), str(info.st_ino), new_offset),
         )
         if previous is None:
             return [], 0
@@ -163,6 +177,31 @@ def _consume_new(conn, path):
             if event:
                 records.append(event)
         return records, skipped
+
+
+def _consume_native(conn, source, now):
+    """Persist normalized native events, deduplication and cursor atomically."""
+    previous = conn.execute(
+        "SELECT checkpoint FROM native_state WHERE source=?", (source,)
+    ).fetchone()
+    checkpoint = previous["checkpoint"] if previous else None
+    batch = poll_native(source, checkpoint)
+    if batch.status not in ("available", "partial"):
+        return [], batch.status, batch.source
+    records = []
+    for item in batch.entries:
+        inserted = conn.execute(
+            "INSERT OR IGNORE INTO native_seen(source,event_key,seen_ts) VALUES (?,?,?)",
+            (batch.source, item.key, now)
+        ).rowcount
+        if previous is not None and inserted:
+            records.append((item.kind, item.ip))
+    conn.execute(
+        "INSERT INTO native_state(source,checkpoint,initialized) VALUES (?,?,1) "
+        "ON CONFLICT(source) DO UPDATE SET checkpoint=excluded.checkpoint,initialized=1",
+        (source, batch.checkpoint if batch.checkpoint is not None else checkpoint),
+    )
+    return records, batch.status, batch.source
 
 
 def _emit(conn, now, category, severity, title, detail, fingerprint):
@@ -192,20 +231,26 @@ def _health_alerts(conn, now, health):
                   f"{label}: {value:.1f}% (sampled locally)", key)
 
 
-def run_once(now=None, log_path=None, health=None):
+def run_once(now=None, log_path=None, health=None, source="auto"):
     """Read available log changes and machine health exactly once."""
     now = int(time.time()) if now is None else int(now)
     health = sample_health() if health is None else health
-    path = _select_log(log_path)
+    path = _select_log(log_path) if source in ("auto", "file") else None
+    mode = "file" if log_path and source == "auto" else selected_source(source, has_text_log=bool(path))
     with closing(connect()) as conn, conn:
         records, skipped = [], 0
         status = "unavailable"
-        if path:
-            try:
-                records, skipped = _consume_new(conn, path)
-                status = "available"
-            except (OSError, PermissionError):
-                status = "unavailable"
+        source_name = None
+        if mode == "file":
+            if path:
+                try:
+                    records, skipped = _consume_new(conn, path)
+                    status = "available"
+                    source_name = path.name
+                except (OSError, PermissionError):
+                    status = "unavailable"
+        elif mode in ("journal", "windows", "macos"):
+            records, status, source_name = _consume_native(conn, mode, now)
         sources = set()
         for kind, ip in records:
             conn.execute("INSERT INTO events(ts,kind,source) VALUES (?,?,?)", (now, kind, ip))
@@ -229,12 +274,14 @@ def run_once(now=None, log_path=None, health=None):
         _health_alerts(conn, now, health)
         conn.execute(
             "INSERT OR REPLACE INTO monitor_state(id,last_poll,log_status,source_name,bytes_skipped) VALUES (1,?,?,?,?)",
-            (now, status, path.name if status == "available" else None, skipped),
+            (now, status, source_name if status in ("available", "partial") else None, skipped),
         )
+        conn.execute("DELETE FROM native_seen WHERE seen_ts < ?", (now - RETENTION_SECONDS,))
         conn.execute("DELETE FROM events WHERE ts < ?", (now - RETENTION_SECONDS,))
         conn.execute("DELETE FROM health WHERE ts < ?", (now - RETENTION_SECONDS,))
         conn.execute("DELETE FROM alerts WHERE ts < ?", (now - ALERT_RETENTION_SECONDS,))
-    return {"last_poll": now, "log_status": status, "events_added": len(records), "bytes_skipped": skipped}
+    return {"last_poll": now, "log_status": status, "source": source_name,
+            "events_added": len(records), "bytes_skipped": skipped}
 
 
 def overview(now=None):
@@ -288,6 +335,7 @@ def main():
     parser = argparse.ArgumentParser(description="Read-only SecuriGotchi local monitoring collector")
     parser.add_argument("command", choices=["once", "watch", "status"])
     parser.add_argument("--interval", type=int, default=60, help="Seconds between polls (10-3600)")
+    parser.add_argument("--source", choices=["auto", "file", "journal", "windows", "macos"], default="auto")
     parser.add_argument("--notify", action="store_true", help="Opt-in desktop notifications (watch only)")
     parser.add_argument("--notify-level", choices=["warning", "high", "critical"], default="high")
     args = parser.parse_args()
@@ -300,7 +348,7 @@ def main():
         print(json.dumps(overview(), indent=2))
         return
     if args.command == "once":
-        print(run_once())
+        print(run_once(source=args.source))
         return
     notifier = None
     if args.notify:
@@ -315,7 +363,7 @@ def main():
             if notifier:
                 enable_notifications()  # Before first poll; no historical alert replay.
             while True:
-                print(run_once(), flush=True)
+                print(run_once(source=args.source), flush=True)
                 if notifier:
                     notifier(min_level=args.notify_level)
                 time.sleep(args.interval)
