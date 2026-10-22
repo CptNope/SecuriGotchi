@@ -59,6 +59,7 @@ class Phase4Tests(unittest.TestCase):
         with monitor.exclusive_watch_lock():
             pass
 
+    @unittest.skipIf(os.name == 'nt', 'systemd unit paths are Linux-only')
     def test_systemd_template_is_opt_in_and_no_web(self):
         unit = render_unit(Path("/home/example/SecuriGotchi"), 60, True, "high")
         self.assertIn("NoNewPrivileges=true", unit)
