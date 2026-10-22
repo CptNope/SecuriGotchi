@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const el = id => document.getElementById(id);
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  let preferences = {};
   async function api(url, options) {
     const response = await fetch(url, options);
     if (response.status === 401) {
@@ -76,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const mood = moodLabels[data.mood] ? data.mood : 'sleeping';
       el('gotchi-sprite').className = 'gotchi-sprite mood-' + mood;
       el('gotchi-mood').textContent = moodLabels[mood];
-      el('collector-state').textContent = data.status === 'running' ? 'Monitoring local system' :
+      el('collector-state').textContent = data.status === 'paused' ? 'Monitoring paused in Settings' : data.status === 'running' ? 'Monitoring local system' :
         data.status === 'stale' ? 'Collector stopped or stale' : 'Collector not started';
       el('monitor-failed').textContent = data.events_24h.failed || 0;
       el('monitor-invalid').textContent = data.events_24h.invalid_user || 0;
@@ -166,8 +167,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       models.forEach(name => select.add(new Option(name, name)));
+      if (models.includes(preferences.ai_model)) select.value = preferences.ai_model;
       select.disabled = data.ollama !== 'ready';
-      run.disabled = data.collector !== 'running' || data.ollama !== 'ready';
+      run.disabled = preferences.ai_enabled === false || data.collector !== 'running' || data.ollama !== 'ready';
+      if (preferences.ai_enabled === false) status.textContent += ' · AI disabled in Settings';
     } catch (error) { status.textContent = 'AI diagnostics unavailable'; }
   }
   el('ai-refresh').addEventListener('click', loadAI);
@@ -176,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const report = el('ai-report');
     const run = el('ai-run');
     run.disabled = true;
-    report.textContent = 'Asking the selected local Ollama model… Loading a large model can take up to three minutes.';
+    report.textContent = 'Asking the selected local Ollama model… Allow up to ' + (preferences.ai_timeout || 180) + ' seconds for loading and generation.';
     try {
       const data = await api('/api/ai/explain', {
         method: 'POST',
@@ -189,9 +192,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   loadStatus();
   loadMonitor();
-  loadAI();
+  api('/api/settings').then(data => {
+    preferences = data.values;
+    loadAI();
+    setInterval(() => { loadMonitor(); loadNetwork(); loadTrends(); }, preferences.refresh_seconds * 1000);
+  }).catch(() => { loadAI(); setInterval(() => { loadMonitor(); loadNetwork(); }, 30000); });
   loadTrends();
   loadNetwork();
-  setInterval(loadNetwork, 30000);
-  setInterval(loadMonitor, 30000);
 });

@@ -12,6 +12,12 @@ def ask_gotchi(question):
     if not isinstance(question, str) or not 1 <= len(question.strip()) <= 2000:
         raise ValueError("Question must be 1-2000 characters")
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
+    from gotchi_settings import load
+    settings = load()
+    if not settings['ai_enabled']:
+        raise ValueError('Local AI is disabled in Settings')
+    config.update(model=settings['ai_model'] or config.get('model', 'llama3'),
+                  temperature=settings['ai_temperature'], system_prompt=settings['ai_system_prompt'])
     context = []
     try:
         from gotchi_vector import search_memory
@@ -29,10 +35,11 @@ def ask_gotchi(question):
         "model": config.get("model", "llama3"),
         "prompt": prompt,
         "stream": False,
-        "options": {"temperature": config.get("temperature", 0.5)}
+        "think": settings['ai_thinking'],
+        "options": {"temperature": config.get("temperature", 0.5), "num_predict": settings['ai_tokens']}
     }).encode("utf-8")
     req = Request(OLLAMA_ENDPOINT, data=body, headers={"Content-Type": "application/json"})
-    with urlopen(req, timeout=90) as response:
+    with urlopen(req, timeout=settings['ai_timeout']) as response:
         result = json.load(response)
     return result.get("response", "")
 

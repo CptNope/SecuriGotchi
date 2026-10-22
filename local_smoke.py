@@ -49,6 +49,16 @@ def main():
             assert response.status == 200 and response.url == base + '/'
             for path in ('/api/monitor', '/api/brain', '/api/trends', '/api/network'):
                 assert client.open(base + path).status == 200
+            assert client.open(base + '/settings').status == 200
+            import json
+            saved = json.loads(client.open(base + '/api/settings').read())
+            dashboard = client.open(base + '/').read().decode()
+            csrf = re.search(r'name="csrf-token" content="([^"]+)"', dashboard).group(1)
+            request = urllib.request.Request(base + '/api/settings',
+                data=json.dumps({'values': saved['values'], 'revision': saved['revision']}).encode(),
+                headers={'Content-Type': 'application/json', 'X-CSRF-Token': csrf})
+            assert json.loads(client.open(request).read())['revision'] == saved['revision'] + 1
+            print('PASS: settings page, authenticated schema, CSRF-protected durable save')
             try:
                 client.open(base + '/api/ai/explain', b'{}')
                 raise AssertionError('CSRF bypass')

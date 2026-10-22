@@ -14,6 +14,7 @@ from gotchi_monitor import overview
 from gotchi_insights import trends
 from gotchi_ai_ops import diagnostics, analyze
 from threading import BoundedSemaphore
+from datetime import timedelta
 
 _AI_LIMIT = BoundedSemaphore(1)
 
@@ -37,6 +38,8 @@ def local_host_only():
     host = request.host.split(":")[0].lower()
     if host not in ("localhost", "127.0.0.1", "[::1]"):
         return jsonify({"error": "Localhost only"}), 403
+    from gotchi_settings import load
+    app.permanent_session_lifetime = timedelta(minutes=load()['session_minutes'])
 
 
 @app.after_request
@@ -57,7 +60,9 @@ def require_admin(route):
     def inner(*args, **kwargs):
         if not has_admin():
             return jsonify({"error": "Run python gotchi_auth.py init-admin first"}), 503
-        if session.get("admin") != "admin":
+        from gotchi_auth import auth_epoch
+        if session.get("admin") != "admin" or session.get('auth_epoch', 0) != auth_epoch():
+            session.clear()
             if request.path.startswith("/api/"):
                 return jsonify({"error": "Login required"}), 401
             return redirect(url_for("login"))
@@ -98,6 +103,8 @@ def login():
     session.clear()
     session.permanent = True
     session["admin"] = "admin"
+    from gotchi_auth import auth_epoch
+    session['auth_epoch'] = auth_epoch()
     session["csrf"] = secrets.token_urlsafe(32)
     return redirect(url_for("index"))
 
@@ -115,6 +122,63 @@ def logout():
 @require_admin
 def index():
     return render_template("index.html", csrf=session["csrf"])
+
+
+@app.get('/settings')
+@require_admin
+def settings_page():
+    return render_template('settings.html', csrf=session['csrf'])
+
+
+@app.route('/api/settings', methods=['GET', 'POST'])
+@require_admin
+def settings_api():
+    from gotchi_settings import FIELDS, load_document, save, ConflictError, runtime
+    if request.method == 'POST':
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict) or not csrf_valid({'csrf': request.headers.get('X-CSRF-Token')}):
+            return jsonify(error='Invalid request token'), 403
+        try:
+            document = save(payload.get('values'), payload.get('revision'), payload.get('authorize_discovery') is True)
+            return jsonify(**document, message='Settings saved. Collector changes apply on its next settings check, normally within five seconds plus any current poll. Reload the dashboard for display changes.')
+        except ConflictError as error:
+            return jsonify(error=str(error)), 409
+        except (ValueError, OSError) as error:
+            return jsonify(error=str(error)), 400
+    from gotchi_platform import os_family
+    from gotchi_auth import data_dir
+    import shutil
+    family = os_family()
+    return jsonify(**load_document(), fields=FIELDS, field_order=list(FIELDS), collector=runtime(),
+                   capabilities={'os': family, 'wifi': family == 'windows', 'notifications': family == 'linux' and bool(shutil.which('notify-send'))},
+                   deployment={'data_directory': str(data_dir()),
+                               'bind': '127.0.0.1:5000', 'ollama': '127.0.0.1:11434',
+                               'auth_log_environment_override': bool(os.environ.get('SECURIGOTCHI_AUTH_LOG')),
+                               'secure_cookies': app.config['SESSION_COOKIE_SECURE']})
+
+
+@app.post('/api/settings/password')
+@require_admin
+def password_settings():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not csrf_valid({'csrf': request.headers.get('X-CSRF-Token')}):
+        return jsonify(error='Invalid request token'), 403
+    now = time.monotonic()
+    attempts = [stamp for stamp in FAILED.get('password-change', []) if now - stamp < 60]
+    if len(attempts) >= 5:
+        return jsonify(error='Too many password attempts; retry in one minute'), 429
+    attempts.append(now)
+    FAILED['password-change'] = attempts
+    if not isinstance(data.get('current'), str) or not isinstance(data.get('password'), str) or data.get('password') != data.get('confirm'):
+        return jsonify(error='Enter current password and matching new passwords'), 400
+    from gotchi_auth import change_password
+    try:
+        change_password(data['current'], data['password'])
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    FAILED.pop('password-change', None)
+    session.clear()
+    return jsonify(message='Password changed. All existing sessions are invalidated. Sign in with your new password.')
 
 
 @app.get("/api/brain")
@@ -216,7 +280,7 @@ def ai_explain():
         return jsonify({"error": str(exc)}), 400
     except RuntimeError as exc:
         app.logger.warning("Local AI analysis unavailable")
-        if str(exc).startswith("Local Ollama timed out after 180 seconds;"):
+        if str(exc).startswith("Local Ollama timed out after "):
             return jsonify({"error": str(exc)}), 503
         return jsonify({"error": "Local AI unavailable; check Ollama and collector"}), 503
     finally:

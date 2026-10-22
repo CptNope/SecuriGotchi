@@ -62,7 +62,8 @@ def summarize_lines(lines):
 
 
 def get_snapshot():
-    override = os.environ.get("SECURIGOTCHI_AUTH_LOG")
+    from gotchi_settings import load
+    override = os.environ.get("SECURIGOTCHI_AUTH_LOG") or load()['auth_log']
     candidates = (override,) if override else DEFAULT_LOGS
     for candidate in candidates:
         path = Path(candidate).expanduser()
@@ -83,6 +84,6 @@ def get_snapshot():
         "status": "unavailable",
         "source": None,
         "sample_lines": 0,
-        "note": "No readable SSH auth log. Set SECURIGOTCHI_AUTH_LOG to a readable log file if available.",
+        "note": "No readable SSH auth log. Choose a readable SSH text log in Settings or set SECURIGOTCHI_AUTH_LOG.",
         **summarize_lines([]),
     }

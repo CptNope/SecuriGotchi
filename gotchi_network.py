@@ -149,6 +149,8 @@ def collect(conn, now, emit, active_cidr=None):
     pending_alerts = []
     emit_alert = emit
     emit = lambda *args: pending_alerts.append(args)
+    from gotchi_settings import load
+    settings = load()
     schema = '''
         CREATE TABLE IF NOT EXISTS network_state (id INTEGER PRIMARY KEY, payload TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS network_devices (
@@ -171,16 +173,16 @@ def collect(conn, now, emit, active_cidr=None):
         elif wifi.get('ssid') and prior.get('ssid') and wifi['ssid'] != prior['ssid']:
             emit(conn, now, 'network', 'warning', 'Wi-Fi network changed',
                  'The connected Wi-Fi network name changed; review locally.', 'wifi:network')
-    if wifi.get('signal_percent') is not None and wifi['signal_percent'] < 30:
+    if wifi.get('signal_percent') is not None and wifi['signal_percent'] < settings['wifi_signal_warning']:
         emit(conn, now, 'network', 'warning', 'Weak Wi-Fi signal',
-             'Signal strength is below 30%.', 'wifi:signal')
+             f"Signal strength is below {settings['wifi_signal_warning']}%.", 'wifi:signal')
     if (wifi.get('authentication') or '').lower() in ('open', 'shared', 'wep'):
         emit(conn, now, 'network', 'high', 'Weak Wi-Fi authentication',
              'Wi-Fi reports open or legacy authentication; review router settings.', 'wifi:security')
     discovery = {'status': 'disabled', 'devices': [], 'detail': 'Active discovery is off; enable an authorized subnet in the collector CLI.'}
     if active_cidr:
         previous_discovery = old.get('discovery', {})
-        if previous_discovery.get('scope') == active_cidr and now - previous_discovery.get('sampled_at', 0) < 300:
+        if previous_discovery.get('scope') == active_cidr and now - previous_discovery.get('sampled_at', 0) < settings['discovery_interval']:
             discovery = previous_discovery
         else:
             try:
@@ -202,7 +204,7 @@ def collect(conn, now, emit, active_cidr=None):
                 discovery['baseline'] = not bool(baseline)
             except (ValueError, OSError, RuntimeError) as error:
                 discovery = {'status': 'unavailable', 'scope': active_cidr, 'devices': [], 'detail': str(error), 'sampled_at': now}
-    conn.execute('DELETE FROM network_devices WHERE last_seen < ?', (now - 30 * 86400,))
+    conn.execute('DELETE FROM network_devices WHERE last_seen < ?', (now - settings['device_retention_days'] * 86400,))
     payload = {'sampled_at': now, 'wifi': wifi, 'discovery': discovery}
     conn.execute('INSERT OR REPLACE INTO network_state VALUES (1,?)', (json.dumps(payload),))
     for args in pending_alerts:
