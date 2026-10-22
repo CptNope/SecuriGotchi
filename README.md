@@ -54,6 +54,32 @@ Rules: five SSH failures from the same IP within five minutes trigger **high** s
 
 The dashboard polls `/api/monitor` every 30 seconds and shows the Gotchi's derived **calm, watchful, alert, critical, or sleeping** mood. It does not award XP for attacks or pretend that monitoring is active when the collector is stale. The system is **not** a general IDS: no journald ingestion, email/push notifications, guaranteed delivery, or malware classification exists yet. Log rotations and large spikes can lose events; skipped bytes are reported, and the file-offset model may need deeper handling on unusual filesystems.
 
+## Phase 4: Local desktop notifications and systemd user service
+
+**Notifications are opt-in and local only.** On a Linux graphical session, install `notify-send` (Debian/Ubuntu: `sudo apt install libnotify-bin`) and test it:
+
+```bash
+.venv/bin/python gotchi_notifications.py test
+.venv/bin/python gotchi_monitor.py watch --interval 60 --notify --notify-level high
+```
+
+The notifier only displays short alert titles and severity (not IP addresses, usernames, raw logs, or AI-generated commands). It requires a working desktop D-Bus session; **headless Raspberry Pi and most WSL sessions should run without `--notify`**. It processes new events only after explicit opt-in, retries when the desktop notification broker fails, and maintains a private SQLite cursor. Desktop broker acceptance does not guarantee the person saw the notification. A crash after delivery but before cursor persistence can repeat it.
+
+To generate a **systemd user service** for the same checkout:
+
+```bash
+.venv/bin/python gotchi_service.py print
+.venv/bin/python gotchi_service.py install
+systemctl --user daemon-reload
+systemctl --user enable --now securigotchi-monitor.service
+systemctl --user status securigotchi-monitor.service
+journalctl --user -u securigotchi-monitor.service -n 50
+```
+
+The generator writes a unit but **does not start or enable** it. Add `--notify` to the `gotchi_service.py install` command only for a logged-in graphical user session. Do not run a second manual `watch` concurrently; the collector uses a nonblocking Linux file lock. The service uses the default data directory `~/.local/share/securigotchi`; custom storage needs manual unit configuration. Avoid enabling systemd lingering to force user-session notifications on headless devices.
+
+Service unit supervision does not guarantee log permissions, desktop D-Bus delivery, or cross-platform compatibility; test on the actual Ubuntu/WSL/Raspberry Pi system. Notifications do not depend on Ollama and never execute response actions.
+
 ## Local-only tools
 
 ```bash
