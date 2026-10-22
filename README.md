@@ -2,7 +2,7 @@
 
 SecuriGotchi is a local-first gamified Python security companion for Ubuntu, WSL, and Raspberry Pi. It provides mission XP, a tamper-evident SHA-256 activity log, optional GPG signatures, optional ChromaDB semantic memory, local Ollama chat, CLI plugins, and a localhost dashboard.
 
-> **Security notice:** This project has no account registration, multi-user permissions, device enrollment, or secure remote access yet. The web dashboard is read-only for plugins and must not be exposed to the public internet.
+> **Security notice:** Phase 2 adds **one local administrator account**, created only from the terminal, and protected dashboard sessions. There is no public sign-up, device enrollment, multi-user permissions, or secure remote access. Plugin execution remains disabled through HTTP. Do not expose the Flask dashboard to the public internet.
 
 ## Install (Python 3.11+)
 
@@ -10,10 +10,13 @@ SecuriGotchi is a local-first gamified Python security companion for Ubuntu, WSL
 git clone https://github.com/CptNope/SecuriGotchi.git
 cd SecuriGotchi
 bash secgotchi_install.sh
+.venv/bin/python gotchi_auth.py init-admin
 .venv/bin/python gotchi_webui.py
 ```
 
-Open **http://127.0.0.1:5000** on the same computer. The installer creates a Python virtual environment and installs the lightweight Flask core. It does not perform sudo changes or system-wide pip installs.
+Open **http://127.0.0.1:5000** on the same computer and sign in as `admin` with your newly created password. First-run registration happens in the terminal and is closed after the administrator is created. The signing key and password verifier are stored by default in `~/.local/share/securigotchi/` (private directory, `0700`), not in the repository. For custom storage set `SECURIGOTCHI_DATA_DIR` to a user-owned, private directory before running setup or the dashboard.
+
+**Important:** Keep a backup of this directory. No password reset UI or remote login is provided. The installer creates a Python virtual environment and installs the lightweight Flask core. It does not perform sudo changes or system-wide pip installs.
 
 For optional semantic memory:
 
@@ -28,6 +31,12 @@ The first vector query may download an embedding model and can require substanti
 ```bash
 .venv/bin/python gotchi_agent.py
 ```
+
+## Local SSH threat snapshot
+
+The signed-in dashboard now displays counts of failed SSH logins, accepted logins, invalid-user events, and unique failing source IPs. The backend reads **only the last 1 MiB** of an accessible `/var/log/auth.log` or `/var/log/secure`. No sudo escalation or shell commands are used for log reading. The snapshot is sampled, not real-time detection or a complete intrusion history.
+
+If neither default log is readable, set `SECURIGOTCHI_AUTH_LOG` to a local log file you are authorized to read. The dashboard shows an unavailable state rather than requiring elevated permissions. The browser receives summary counts, not raw log lines.
 
 ## Local-only tools
 
@@ -59,9 +68,9 @@ GitHub Actions runs core syntax/tests on supported Python versions. Optional AI 
 ## Further improvements
 
 1. Move all runtime data to a dedicated directory; implement atomic multi-file transactions, locking, migration and backups.
-2. Add local registration and login, CSRF tokens, roles, per-tool authorization and a remote access threat model.
+2. Extend the local single-admin login with OS-independent auth support, secure reset/recovery, roles, hardware-device enrollment, stronger rate limiting, and a remote-access threat model.
 3. Rewrite legacy plugins as permission-scoped, sandboxed, argument-validated and timeout-limited subprocesses.
 4. Add dependency lockfiles, broader CI, tested Chroma migrations, signed manifest verification and Ollama integration tests.
-5. Improve Raspberry Pi touchscreen interface and device-local notification support.
+5. Improve Raspberry Pi touchscreen interface, journald ingestion, severity/rule logic, device-local notification support and continuously collected metrics.
 
 © Jeremy Anderson · [Jeremy Anderson Tech](https://jeremyanderson.tech)
