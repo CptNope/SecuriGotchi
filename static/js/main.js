@@ -104,6 +104,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   el('refresh-monitor').addEventListener('click', loadMonitor);
+  async function loadNetwork() {
+    try {
+      const data = await api('/api/network');
+      const wifi = data.wifi || {};
+      const discovery = data.discovery || {};
+      el('network-state').textContent = 'Sample: ' + data.status + ' · Wi-Fi: ' + (wifi.status || 'not enabled');
+      el('network-ssid').textContent = wifi.ssid || 'Unavailable';
+      el('network-signal').textContent = wifi.signal_percent == null ? 'Unavailable' : wifi.signal_percent + '%';
+      el('network-security').textContent = wifi.authentication || 'Unavailable';
+      el('network-ip').textContent = wifi.ip || 'Unavailable';
+      el('network-note').textContent = wifi.detail || 'Enable Wi-Fi monitoring in the collector.';
+      el('network-discovery').textContent = 'Discovery: ' + (discovery.status || 'disabled') +
+        (discovery.scope ? ' · ' + discovery.scope : '') +
+        (discovery.sampled_at ? ' · ' + new Date(discovery.sampled_at * 1000).toLocaleString() : '') +
+        (discovery.baseline ? ' · Initial baseline' : '') + '. ' + (discovery.detail || '');
+      const list = el('network-devices');
+      list.replaceChildren();
+      const devices = discovery.devices || [];
+      if (!devices.length) list.textContent = 'No responding devices recorded in this sample.';
+      devices.forEach(device => {
+        const row = document.createElement('div');
+        row.className = 'logentry';
+        row.textContent = device.ip + ' · ' + (device.mac || 'MAC unavailable') + ' · Ping response';
+        list.appendChild(row);
+      });
+    } catch (error) { el('network-state').textContent = error.message; }
+  }
+  el('refresh-network').addEventListener('click', loadNetwork);
   async function loadTrends() {
     const chart = el('trend-chart');
     try {
@@ -148,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const report = el('ai-report');
     const run = el('ai-run');
     run.disabled = true;
-    report.textContent = 'Asking the selected local Ollama model…';
+    report.textContent = 'Asking the selected local Ollama model… Loading a large model can take up to three minutes.';
     try {
       const data = await api('/api/ai/explain', {
         method: 'POST',
@@ -163,5 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMonitor();
   loadAI();
   loadTrends();
+  loadNetwork();
+  setInterval(loadNetwork, 30000);
   setInterval(loadMonitor, 30000);
 });

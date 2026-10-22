@@ -231,12 +231,16 @@ def _health_alerts(conn, now, health):
                   f"{label}: {value:.1f}% (sampled locally)", key)
 
 
-def run_once(now=None, log_path=None, health=None, source="auto"):
+def run_once(now=None, log_path=None, health=None, source="auto", network=False, discover_network=None):
     """Read available log changes and machine health exactly once."""
     now = int(time.time()) if now is None else int(now)
     health = sample_health() if health is None else health
     path = _select_log(log_path) if source in ("auto", "file") else None
     mode = "file" if log_path and source == "auto" else selected_source(source, has_text_log=bool(path))
+    if network:
+        from gotchi_network import collect
+        with closing(connect()) as network_conn, network_conn:
+            collect(network_conn, now, _emit, active_cidr=discover_network)
     with closing(connect()) as conn, conn:
         records, skipped = [], 0
         status = "unavailable"
@@ -338,7 +342,16 @@ def main():
     parser.add_argument("--source", choices=["auto", "file", "journal", "windows", "macos"], default="auto")
     parser.add_argument("--notify", action="store_true", help="Opt-in desktop notifications (watch only)")
     parser.add_argument("--notify-level", choices=["warning", "high", "critical"], default="high")
+    parser.add_argument("--network", action="store_true", help="Opt-in Windows Wi-Fi health")
+    parser.add_argument("--discover-network", metavar="CIDR", help="Opt-in ping discovery on an authorized directly connected private /24-/30 subnet; repeats every five minutes")
     args = parser.parse_args()
+    if args.discover_network:
+        from gotchi_network import validate_network
+        try:
+            validate_network(args.discover_network)
+        except (ValueError, OSError) as error:
+            parser.error(str(error))
+        args.network = True
     if args.notify and args.command != "watch":
         parser.error("--notify requires the watch command")
     if not 10 <= args.interval <= 3600:
@@ -348,7 +361,7 @@ def main():
         print(json.dumps(overview(), indent=2))
         return
     if args.command == "once":
-        print(run_once(source=args.source))
+        print(run_once(source=args.source, network=args.network, discover_network=args.discover_network))
         return
     notifier = None
     if args.notify:
@@ -357,13 +370,15 @@ def main():
             parser.error("notify-send is missing. Install libnotify-bin or omit --notify.")
         from gotchi_notifications import enable_notifications, deliver_pending
         notifier = deliver_pending
-    print("Monitoring locally; Ctrl+C to stop. No firewall or scan operations are performed.")
+    print("Monitoring locally; Ctrl+C to stop. No firewall changes or port scans.")
+    if args.discover_network:
+        print("Authorized ping discovery enabled on " + args.discover_network)
     try:
         with exclusive_watch_lock():
             if notifier:
                 enable_notifications()  # Before first poll; no historical alert replay.
             while True:
-                print(run_once(source=args.source), flush=True)
+                print(run_once(source=args.source, network=args.network, discover_network=args.discover_network), flush=True)
                 if notifier:
                     notifier(min_level=args.notify_level)
                 time.sleep(args.interval)

@@ -64,7 +64,7 @@ class DoctorTests(unittest.TestCase):
     def test_stale_corrupt_and_future_collector_status(self):
         self.path.mkdir(mode=0o700)
         monitor = self.path / "monitor.sqlite3"
-        with sqlite3.connect(monitor) as conn:
+        with contextlib.closing(sqlite3.connect(monitor)) as conn, conn:
             conn.execute("CREATE TABLE monitor_state (id INTEGER,last_poll INTEGER,log_status TEXT)")
             conn.execute("INSERT INTO monitor_state VALUES (1, 1000, 'available')")
         self.assertEqual(doctor._collector_state(monitor, 1200), "stale")
