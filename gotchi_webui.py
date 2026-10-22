@@ -12,6 +12,10 @@ from gotchi_memory import load_brain, changelog_path
 from gotchi_threats import get_snapshot
 from gotchi_monitor import overview
 from gotchi_insights import trends
+from gotchi_ai_ops import diagnostics, analyze
+from threading import BoundedSemaphore
+
+_AI_LIMIT = BoundedSemaphore(1)
 
 app = Flask(__name__)
 app.config.update(
@@ -178,6 +182,36 @@ def monitor_status():
 @require_admin
 def security_trends():
     return jsonify(trends(24))
+
+
+@app.get("/api/ai/diagnostics")
+@require_admin
+def ai_diagnostics():
+    return jsonify(diagnostics())
+
+
+@app.post("/api/ai/explain")
+@require_admin
+def ai_explain():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not csrf_valid({
+        "csrf": request.headers.get("X-CSRF-Token")
+    }):
+        return jsonify({"error": "Invalid request token"}), 403
+    model = data.get("model")
+    if not isinstance(model, str) or len(model) > 120:
+        return jsonify({"error": "Select an installed local model"}), 400
+    if not _AI_LIMIT.acquire(blocking=False):
+        return jsonify({"error": "An AI analysis is already running"}), 429
+    try:
+        return jsonify(analyze(model))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except RuntimeError:
+        app.logger.warning("Local AI analysis unavailable")
+        return jsonify({"error": "Local AI unavailable; check Ollama and collector"}), 503
+    finally:
+        _AI_LIMIT.release()
 
 
 if __name__ == "__main__":

@@ -29,6 +29,21 @@ class WebTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, [{"content": "Local SSH audit"}])
 
+    def test_ai_requires_csrf(self):
+        response = self.client.post("/api/ai/explain", json={"model": "llama3"})
+        self.assertEqual(response.status_code, 403)
+
+    def test_ai_returns_advisory_response(self):
+        with patch("gotchi_webui.analyze", return_value={"analysis": "Check logs", "notice": "Advisory"}):
+            response = self.client.post("/api/ai/explain",
+                json={"model": "llama3"}, headers={"X-CSRF-Token": "test-csrf-token"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["analysis"], "Check logs")
+
+    def test_ai_diagnostics_authenticated(self):
+        with patch("gotchi_webui.diagnostics", return_value={"ollama":"unavailable"}):
+            self.assertEqual(self.client.get("/api/ai/diagnostics").status_code, 200)
+
     def test_security_headers(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)

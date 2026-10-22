@@ -120,8 +120,48 @@ document.addEventListener('DOMContentLoaded', () => {
       chart.setAttribute('aria-label', 'Failed logins by hour: ' + points.map(p => p.failed).join(', '));
     } catch (err) { chart.textContent = 'Trend unavailable'; }
   }
+  async function loadAI() {
+    const status = el('ai-diagnostics');
+    const select = el('ai-model');
+    const run = el('ai-run');
+    run.disabled = true;
+    select.disabled = true;
+    select.replaceChildren();
+    try {
+      const data = await api('/api/ai/diagnostics');
+      status.textContent = 'Collector: ' + data.collector +
+        ' · Event source: ' + data.event_source +
+        ' · Ollama: ' + data.ollama + ' · MCP SDK: ' + data.mcp_sdk;
+      const models = data.models || [];
+      if (!models.length) {
+        select.add(new Option('No local models detected', ''));
+        return;
+      }
+      models.forEach(name => select.add(new Option(name, name)));
+      select.disabled = data.ollama !== 'ready';
+      run.disabled = data.collector !== 'running' || data.ollama !== 'ready';
+    } catch (error) { status.textContent = 'AI diagnostics unavailable'; }
+  }
+  el('ai-refresh').addEventListener('click', loadAI);
+  el('ai-explain-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const report = el('ai-report');
+    const run = el('ai-run');
+    run.disabled = true;
+    report.textContent = 'Asking the selected local Ollama model…';
+    try {
+      const data = await api('/api/ai/explain', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json', 'X-CSRF-Token': csrf},
+        body: JSON.stringify({model: el('ai-model').value})
+      });
+      report.textContent = data.analysis + '\n\n' + data.notice;
+    } catch(error) { report.textContent = error.message; }
+    finally { run.disabled = false; }
+  });
   loadStatus();
   loadMonitor();
+  loadAI();
   loadTrends();
   setInterval(loadMonitor, 30000);
 });
