@@ -1,5 +1,6 @@
 """Non-destructive doctor tests. No live OS logs, network, services or model calls."""
 import contextlib
+from contextlib import closing
 import io
 import os
 from pathlib import Path
@@ -41,7 +42,7 @@ class DoctorTests(unittest.TestCase):
     def test_existing_admin_and_monitor_are_inspected_readonly(self):
         self.path.mkdir(mode=0o700)
         admin = self.path / "auth.sqlite3"
-        with sqlite3.connect(admin) as conn:
+        with closing(sqlite3.connect(admin)) as conn, conn:
             conn.execute("CREATE TABLE admins (username TEXT)")
             conn.execute("INSERT INTO admins VALUES ('admin')")
         os.chmod(admin, 0o600)
@@ -49,7 +50,7 @@ class DoctorTests(unittest.TestCase):
         key.write_bytes(b"x" * 32)
         os.chmod(key, 0o600)
         monitor = self.path / "monitor.sqlite3"
-        with sqlite3.connect(monitor) as conn:
+        with closing(sqlite3.connect(monitor)) as conn, conn:
             conn.execute("CREATE TABLE monitor_state (id INTEGER,last_poll INTEGER,log_status TEXT)")
             conn.execute("INSERT INTO monitor_state VALUES (1, 1000, 'available')")
         os.chmod(monitor, 0o600)
