@@ -1,113 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecuriGotchi Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <nav class="navbar navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <span class="fs-4">🛡️ SecuriGotchi</span>
-            </a>
-            <span class="navbar-text" id="chain-status">
-                Chain Status: Checking...
-            </span>
-        </div>
-    </nav>
-
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5>🧠 Brain Status</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="brain-info">Loading...</div>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-header">
-                        <h5>🧩 Run Plugin</h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="plugin-form">
-                            <div class="mb-3">
-                                <label for="plugin-select" class="form-label">Select Plugin</label>
-                                <select class="form-select" id="plugin-select">
-                                    <optgroup label="Recon & Scanning">
-                                        <option>Metasploit Basic Scan</option>
-                                        <option>Nikto Web Scan</option>
-                                        <option>Nmap Top Ports</option>
-                                        <option>Reverse DNS Scan</option>
-                                    </optgroup>
-                                    <optgroup label="System Diagnostics">
-                                        <option>Netstat Summary</option>
-                                        <option>Fail2Ban Status</option>
-                                        <option>UID Check</option>
-                                        <option>Environment Vars</option>
-                                    </optgroup>
-                                    <optgroup label="Security + Hardening">
-                                        <option>List SUID Binaries</option>
-                                        <option>SSH Honeypot Check</option>
-                                        <option>User Enumeration</option>
-                                    </optgroup>
-                                    <optgroup label="Tools">
-                                        <option>WHOIS Lookup</option>
-                                        <option>Traceroute Tool</option>
-                                        <option>GeoIP Lookup</option>
-                                        <option>TCPDump Sniffer</option>
-                                    </optgroup>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="target-input" class="form-label">Target (if applicable)</label>
-                                <input type="text" class="form-control" id="target-input" placeholder="IP, domain, or leave blank">
-                            </div>
-                            <button type="submit" class="btn btn-primary">Run Plugin</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-8">
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5>🔍 Memory Query</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="input-group mb-3">
-                            <input type="text" class="form-control" id="query-input" placeholder="Ask SecuriGotchi a question...">
-                            <button class="btn btn-primary" type="button" id="query-button">Search</button>
-                        </div>
-                        <div id="query-results" class="mt-3">
-                            <div class="text-center text-muted">
-                                <p>Ask a question to search SecuriGotchi's memory</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-header">
-                        <h5>📜 Recent Memory Entries</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="memory-entries" class="memory-log">
-                            Loading...
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-</body>
-</html>
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07121b">
+<title>SecuriGotchi | Local Security Companion</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</head><body>
+<header class="masthead"><div class="shell headrow">
+<div><p class="eyebrow">LOCAL SECURITY COMPANION</p><h1>🛡️ SecuriGotchi</h1></div>
+<span class="pill" id="chain-status" role="status" aria-live="polite">Checking ledger…</span>
+</div></header>
+<main class="shell dashboard">
+<section class="panel" aria-labelledby="brain-title">
+<h2 id="brain-title">🧠 Gotchi Status</h2><div class="statgrid">
+<div class="stat"><span>XP</span><strong id="brain-xp">—</strong></div>
+<div class="stat"><span>Level</span><strong id="brain-level">—</strong></div>
+<div class="stat"><span>Mode</span><strong id="brain-mode">—</strong></div>
+<div class="stat"><span>Memories</span><strong id="brain-count">—</strong></div></div>
+<p class="hint">All application state stays on this computer. Hash-chaining is tamper-evident, not an immutable blockchain.</p>
+</section>
+<section class="panel" aria-labelledby="query-title"><h2 id="query-title">🔎 Semantic Memory Search</h2>
+<form id="query-form"><label for="query-input">Search previous diagnostics and missions</label>
+<div class="searchrow"><input id="query-input" type="search" maxlength="500" placeholder="What did I investigate?" required><button type="submit">Search</button></div>
+</form><div id="query-results" class="results" aria-live="polite">Optional AI packages enable semantic search.</div></section>
+<section class="panel" aria-labelledby="log-title"><h2 id="log-title">📜 Memory Activity</h2>
+<div id="memory-entries" class="log" aria-live="polite">Loading activity…</div></section>
+<section class="panel" aria-labelledby="plugins-title"><h2 id="plugins-title">🧩 Local Security Tools</h2>
+<p>Browser-based scan execution is disabled until secure authentication, per-tool authorization, and target consent are implemented.</p>
+<p>Run trusted plugins locally:</p><code>python plugin_runner.py</code>
+<p class="hint">Only scan devices and networks you own or are authorized to test.</p></section>
+</main><footer class="shell footer">SecuriGotchi · Local-first cybersecurity companion</footer></body></html>

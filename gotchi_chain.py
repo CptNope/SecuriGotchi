@@ -1,65 +1,123 @@
+"""Locally verifiable hash-chained activity log (not a blockchain)."""
 import hashlib
 import json
-import time
 import os
+from pathlib import Path
+import shutil
 import subprocess
+import tempfile
+from datetime import datetime, timezone
 
-CHAIN_FILE = "gotchi_chain.json"
+CHAIN_FILE = Path(__file__).resolve().parent / "gotchi_chain.json"
+
 
 def hash_block(block):
-    block_string = json.dumps(block, sort_keys=True).encode()
-    return hashlib.sha256(block_string).hexdigest()
+    """Hash canonical block data excluding the stored hash itself."""
+    content = {key: value for key, value in block.items() if key != "hash"}
+    payload = json.dumps(content, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
 
 def create_block(index, action, xp, prev_hash):
-    timestamp = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
     block = {
         "index": index,
-        "timestamp": timestamp,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "action": action,
         "xp": xp,
-        "prev_hash": prev_hash
+        "prev_hash": prev_hash,
     }
     block["hash"] = hash_block(block)
     return block
 
+
+def sign_file(filepath):
+    """Best-effort local signature; never ask for a key interactively."""
+    filepath = Path(filepath)
+    signature = Path(str(filepath) + ".sig")
+    if signature.exists():
+        signature.unlink()  # Never leave a signature of an old version.
+    if not shutil.which("gpg"):
+        return False
+    try:
+        result = subprocess.run(
+            ["gpg", "--batch", "--yes", "--detach-sign", "--armor",
+             "--output", str(signature), str(filepath)],
+            capture_output=True, timeout=15, check=False,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def verify_signature(filepath):
+    filepath = Path(filepath)
+    signature = Path(str(filepath) + ".sig")
+    if not signature.is_file() or not shutil.which("gpg"):
+        return False
+    try:
+        result = subprocess.run(
+            ["gpg", "--batch", "--verify", str(signature), str(filepath)],
+            capture_output=True, timeout=15, check=False,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def save_chain(chain):
-    with open(CHAIN_FILE, "w") as f:
-        json.dump(chain, f, indent=2)
-    sign_file(CHAIN_FILE)
+    path = Path(CHAIN_FILE)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", dir=path.parent, delete=False
+    ) as handle:
+        temporary_path = Path(handle.name)
+        json.dump(chain, handle, indent=2)
+        handle.write("\n")
+    os.replace(temporary_path, path)
+    return sign_file(path)
+
 
 def load_chain():
-    if not os.path.exists(CHAIN_FILE):
-        genesis = create_block(0, "Genesis Block", 0, "0")
-        save_chain([genesis])
-    with open(CHAIN_FILE, "r") as f:
-        return json.load(f)
+    path = Path(CHAIN_FILE)
+    if not path.exists():
+        save_chain([create_block(0, "Genesis Block", 0, "0")])
+    with path.open(encoding="utf-8") as handle:
+        return json.load(handle)
+
 
 def append_to_chain(action, xp):
     chain = load_chain()
-    last_block = chain[-1]
-    new_block = create_block(len(chain), action, xp, last_block["hash"])
-    chain.append(new_block)
+    if not validate_blocks(chain):
+        raise ValueError("Refusing to append: the chain is corrupted")
+    chain.append(create_block(len(chain), action, xp, chain[-1]["hash"]))
     save_chain(chain)
 
-def validate_chain():
-    chain = load_chain()
-    for i in range(1, len(chain)):
-        if chain[i]["prev_hash"] != chain[i - 1]["hash"]:
-            return False
-        if chain[i]["hash"] != hash_block(chain[i]):
-            return False
-    return verify_signature(CHAIN_FILE)
 
-def sign_file(filepath):
-    subprocess.run([
-        "gpg", "--yes", "--armor", "--detach-sign",
-        "--output", f"{filepath}.sig", filepath
-    ])
+def validate_blocks(chain):
+    if not isinstance(chain, list) or not chain:
+        return False
+    for index, block in enumerate(chain):
+        if not isinstance(block, dict) or block.get("index") != index:
+            return False
+        if block.get("hash") != hash_block(block):
+            return False
+        if block.get("prev_hash") != (chain[index - 1]["hash"] if index else "0"):
+            return False
+    return True
 
-def verify_signature(filepath):
-    result = subprocess.run(
-        ["gpg", "--verify", f"{filepath}.sig", filepath],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    return result.returncode == 0
+
+def validate_chain(require_signature=True):
+    try:
+        chain = load_chain()
+        return validate_blocks(chain) and (
+            not require_signature or verify_signature(CHAIN_FILE)
+        )
+    except (OSError, ValueError, TypeError, KeyError):
+        return False
+
+
+if __name__ == "__main__":
+    import sys
+    is_valid = validate_chain()
+    print("Chain and GPG signature valid" if is_valid else "Invalid/unsigned chain")
+    sys.exit(0 if is_valid else 1)
