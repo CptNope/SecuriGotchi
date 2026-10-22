@@ -152,6 +152,32 @@ def signing_key():
     return value
 
 
+def auth_epoch():
+    with closing(_connect()) as conn:
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='auth_meta'").fetchone():
+            return 0
+        row = conn.execute('SELECT epoch FROM auth_meta WHERE id=1').fetchone()
+        return row[0] if row else 0
+
+
+def change_password(current, password):
+    if not verify_admin(ADMIN_USERNAME, current):
+        raise ValueError('Current password is incorrect')
+    if not isinstance(password, str) or not 14 <= len(password) <= 256 or len(password.encode('utf-8')) > 1024:
+        raise ValueError('New password must be 14–256 characters and at most 1024 UTF-8 bytes')
+    salt = secrets.token_bytes(16)
+    digest = _hash(password, salt)
+    with closing(_connect()) as conn, conn:
+        conn.execute('BEGIN IMMEDIATE')
+        # Recheck under the write lock to prevent concurrent password changes.
+        row = conn.execute('SELECT salt,password_hash FROM admins WHERE username=?', (ADMIN_USERNAME,)).fetchone()
+        if not row or not hmac.compare_digest(_hash(current, row[0]), row[1]):
+            raise ValueError('Current password is incorrect')
+        conn.execute('UPDATE admins SET salt=?,password_hash=?,scheme=? WHERE username=?', (salt, digest, SCHEME, ADMIN_USERNAME))
+        conn.execute('CREATE TABLE IF NOT EXISTS auth_meta (id INTEGER PRIMARY KEY, epoch INTEGER NOT NULL)')
+        conn.execute('INSERT INTO auth_meta VALUES (1,1) ON CONFLICT(id) DO UPDATE SET epoch=epoch+1')
+
+
 def main():
     parser = argparse.ArgumentParser(description="Manage the local SecuriGotchi admin")
     parser.add_argument("command", choices=["init-admin", "status"])

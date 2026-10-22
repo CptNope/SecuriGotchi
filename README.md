@@ -2,6 +2,45 @@
 
 **Navigation:** [Install](#cross-platform-core-installer-python-311) · [Windows setup](#windows-quick-start-powershell) · [Platform matrix](#platform-matrix) · [Architecture](#data-flow) · [Local tests](#isolated-local-tests) · [Synthetic alerts](#synthetic-alert-exercise) · [Storage](#configuration-and-storage) · [API](#http-reference) · [Troubleshooting](#troubleshooting-decision-path)
 
+## Settings page
+
+Open **http://127.0.0.1:5000/settings** or choose **Settings** on the dashboard. Administrator login and CSRF are required for changes. Preferences are stored in the private application data directory as `settings.sqlite3`; passwords remain in the separate authentication database.
+
+| Section | Configurable behavior |
+| --- | --- |
+| Monitoring | Pause/resume sampling, interval, event adapter, SSH text-log path |
+| Wi-Fi & discovery | Connection monitoring, authorized discovery subnet, discovery interval, weak-signal threshold |
+| Alert rules | Failure counts/window, disk/memory warning/high/critical thresholds, alert cooldown |
+| Storage & privacy | Event/health, alert and device-identity retention; reduced retention prunes old data on subsequent polls |
+| Notifications | Linux desktop opt-in and minimum severity; platform validation applies |
+| Local AI | Enable/disable, preferred model, installed-model discovery, temperature, timeout, token budget, thinking, CLI chat system prompt |
+| Dashboard | Auto-refresh interval |
+| Account & session | Session lifetime and current-password-verified password change; changing password invalidates all sessions |
+| Configuration files | Export, import, load defaults into form, discard edits; no passwords or keys in exports |
+| Installation | Read-only deployment paths, loopback endpoints and environment overrides, plus setup guidance |
+
+**Save all changes** validates the complete configuration atomically. Concurrent edits from another tab return a conflict instead of overwriting them. Import/defaults edit the form only; save to apply. Enabling discovery or changing its subnet requires explicit network authorization on the page and validation of a directly connected private bounded subnet.
+
+Run `gotchi_monitor.py watch` without flags to follow saved settings. It reloads settings within five seconds of a change, plus any current poll/probe; it remains a separate process and must already be running. Settings does not start/stop OS processes. Pause stops sampling, while the watcher stays available to resume. Explicit CLI flags override saved collector values; `SECURIGOTCHI_AUTH_LOG` overrides the saved log path. The running-configuration panel exposes the last effective values and overrides. Existing systemd units containing `--interval` likewise override the page until their unit is edited and restarted.
+
+Alert thresholds and retention are read on subsequent polls. Dashboard refresh/model preferences need a dashboard reload. AI generation parameters apply to new requests; incident analysis keeps fixed advisory instructions, while the configurable system prompt affects CLI chat. AI/notification opt-outs prevent new actions; they cannot cancel an in-flight generation or retract a delivered notification. A preferred model must already be installed for dashboard use; the page does not download models.
+
+The session duration affects cookie validation on new requests; previously issued cookies can remain subject to their original expiration. Save configuration before a password change, which signs you out. Settings exports can contain private log paths and network scopes; review before sharing. Normal data backups should now include `settings.sqlite3` as well.
+
+Data-directory migration, binding/exposure, HTTPS deployment, OS services, dependency installation, GPG key creation and MCP enablement remain terminal-managed. Their actual values/instructions are visible on the page. The browser cannot grant Windows radio/ping access denied by the OS/runtime.
+
+```mermaid
+flowchart LR
+    Admin[Signed-in administrator] --> Form[Settings form]
+    Form --> Validate[CSRF, schema, ranges and consent]
+    Validate --> Save[Atomic versioned settings database]
+    Save --> Watch[Existing collector reloads settings]
+    Save --> AI[New local AI requests]
+    Save --> UI[Dashboard reload]
+    CLI[Explicit CLI and environment overrides] --> Watch
+    Watch --> Effective[Effective configuration shown on page]
+```
+
 ## Wi-Fi health and local device discovery (Windows)
 
 Both are opt-in. Use the same `SECURIGOTCHI_DATA_DIR` as the dashboard. For the local test installation this is `.securigotchi/interactive` under the checkout.

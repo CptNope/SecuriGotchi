@@ -8,7 +8,11 @@ from gotchi_insights import snapshot, trends
 GENERATION_TIMEOUT_SECONDS = 180
 
 def explain(model="llama3", opener=None):
-    if not isinstance(model, str) or not (1 <= len(model) <= 80) or not all(c.isalnum() or c in "._:-" for c in model):
+    from gotchi_settings import load
+    settings = load()
+    if not settings['ai_enabled']:
+        raise ValueError('Local AI is disabled in Settings')
+    if not isinstance(model, str) or not (1 <= len(model) <= 80) or not all(c.isalnum() or c in "._:/-" for c in model):
         raise ValueError("Invalid model identifier")
     summary = snapshot()
     if summary["status"] != "running":
@@ -18,21 +22,21 @@ def explain(model="llama3", opener=None):
               "Respond with Observations, Uncertainty, and Suggested manual checks only. "
               "Do not execute tools or propose automatic remediation.\n" +
               json.dumps({"summary": summary, "hourly": trends(12)}, ensure_ascii=True))
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False, "think": False,
-                          "options": {"temperature": 0.2, "num_predict": 500}}).encode()
+    payload = json.dumps({"model": model, "prompt": prompt, "stream": False, "think": settings['ai_thinking'],
+                          "options": {"temperature": settings['ai_temperature'], "num_predict": settings['ai_tokens']}}).encode()
     if len(payload) > 16000:
         raise ValueError("Aggregate telemetry too large")
     req = Request("http://127.0.0.1:11434/api/generate", data=payload,
                   headers={"Content-Type": "application/json"})
     client = opener if opener is not None else build_opener(ProxyHandler({}))
     try:
-        with client.open(req, timeout=GENERATION_TIMEOUT_SECONDS) as response:
+        with client.open(req, timeout=settings['ai_timeout']) as response:
             data = response.read(65537)
             if len(data) > 65536:
                 raise ValueError("Model response too large")
             answer = json.loads(data)["response"]
     except TimeoutError as err:
-        raise RuntimeError("Local Ollama timed out after 180 seconds; allow the model to finish loading or select a smaller installed model") from err
+        raise RuntimeError(f"Local Ollama timed out after {settings['ai_timeout']} seconds; allow the model to finish loading or select a smaller installed model") from err
     except (OSError, URLError, KeyError, ValueError) as err:
         raise RuntimeError("Local Ollama analysis unavailable or invalid") from err
     if not isinstance(answer, str) or not answer.strip():
@@ -42,6 +46,7 @@ def explain(model="llama3", opener=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="llama3")
+    parser.add_argument("--model", default=None)
     args = parser.parse_args()
-    print(json.dumps(explain(args.model), indent=2))
+    from gotchi_settings import load
+    print(json.dumps(explain(args.model or load()['ai_model'] or 'llama3'), indent=2))

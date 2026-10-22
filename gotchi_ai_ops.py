@@ -76,6 +76,9 @@ def diagnostics():
 
 
 def analyze(model):
+    from gotchi_settings import load
+    if not load()['ai_enabled']:
+        raise ValueError('Local AI is disabled in Settings')
     if not valid_model_name(model):
         raise ValueError("Select a valid local model")
     if snapshot()["status"] != "running":

@@ -109,7 +109,9 @@ def _select_log(explicit=None):
     elif os.environ.get("SECURIGOTCHI_AUTH_LOG"):
         candidates = (os.environ["SECURIGOTCHI_AUTH_LOG"],)
     else:
-        candidates = DEFAULT_LOGS
+        from gotchi_settings import load
+        configured = load()['auth_log']
+        candidates = (configured,) if configured else DEFAULT_LOGS
     for candidate in candidates:
         path = Path(candidate).expanduser()
         try:
@@ -209,7 +211,8 @@ def _emit(conn, now, category, severity, title, detail, fingerprint):
         "SELECT ts, severity FROM alerts WHERE fingerprint=? ORDER BY ts DESC LIMIT 1",
         (fingerprint,),
     ).fetchone()
-    if previous is not None and now - previous["ts"] < ALERT_COOLDOWN_SECONDS:
+    from gotchi_settings import load
+    if previous is not None and now - previous["ts"] < load()['alert_cooldown']:
         if SEVERITY[severity] <= SEVERITY[previous["severity"]]:
             return False
     conn.execute(
@@ -221,11 +224,13 @@ def _emit(conn, now, category, severity, title, detail, fingerprint):
 
 
 def _health_alerts(conn, now, health):
+    from gotchi_settings import load
+    rules = load()
     for key, label in (("disk_percent", "Disk usage"), ("memory_percent", "Memory usage")):
         value = health.get(key)
         if value is None:
             continue
-        severity = "critical" if value >= 97 else "high" if value >= 90 else "warning" if value >= 80 else None
+        severity = "critical" if value >= rules['usage_critical'] else "high" if value >= rules['usage_high'] else "warning" if value >= rules['usage_warning'] else None
         if severity:
             _emit(conn, now, "health", severity, f"{label} elevated",
                   f"{label}: {value:.1f}% (sampled locally)", key)
@@ -234,6 +239,8 @@ def _health_alerts(conn, now, health):
 def run_once(now=None, log_path=None, health=None, source="auto", network=False, discover_network=None):
     """Read available log changes and machine health exactly once."""
     now = int(time.time()) if now is None else int(now)
+    from gotchi_settings import load
+    settings = load()
     health = sample_health() if health is None else health
     path = _select_log(log_path) if source in ("auto", "file") else None
     mode = "file" if log_path and source == "auto" else selected_source(source, has_text_log=bool(path))
@@ -263,12 +270,12 @@ def run_once(now=None, log_path=None, health=None, source="auto", network=False,
         for ip in sources:
             count = conn.execute(
                 "SELECT COUNT(*) FROM events WHERE kind='failed' AND source=? AND ts>=?",
-                (ip, now - FAILURE_WINDOW_SECONDS),
+                (ip, now - settings['failure_window']),
             ).fetchone()[0]
-            if count >= 5:
-                severity = "critical" if count >= 10 else "high"
+            if count >= settings['failure_high']:
+                severity = "critical" if count >= settings['failure_critical'] else "high"
                 _emit(conn, now, "ssh", severity, "Repeated SSH login failures",
-                      f"{count} failed attempts from {ip} within the last 5 minutes of collector observations",
+                      f"{count} failed attempts from {ip} within the last {settings['failure_window']} seconds of collector observations",
                       "ssh:" + ip)
         conn.execute(
             "INSERT OR REPLACE INTO health(ts,disk_percent,memory_percent,load_avg) "
@@ -280,10 +287,11 @@ def run_once(now=None, log_path=None, health=None, source="auto", network=False,
             "INSERT OR REPLACE INTO monitor_state(id,last_poll,log_status,source_name,bytes_skipped) VALUES (1,?,?,?,?)",
             (now, status, source_name if status in ("available", "partial") else None, skipped),
         )
-        conn.execute("DELETE FROM native_seen WHERE seen_ts < ?", (now - RETENTION_SECONDS,))
-        conn.execute("DELETE FROM events WHERE ts < ?", (now - RETENTION_SECONDS,))
-        conn.execute("DELETE FROM health WHERE ts < ?", (now - RETENTION_SECONDS,))
-        conn.execute("DELETE FROM alerts WHERE ts < ?", (now - ALERT_RETENTION_SECONDS,))
+        retention = settings['event_retention_days'] * 86400
+        conn.execute("DELETE FROM native_seen WHERE seen_ts < ?", (now - retention,))
+        conn.execute("DELETE FROM events WHERE ts < ?", (now - retention,))
+        conn.execute("DELETE FROM health WHERE ts < ?", (now - retention,))
+        conn.execute("DELETE FROM alerts WHERE ts < ?", (now - settings['alert_retention_days'] * 86400,))
     return {"last_poll": now, "log_status": status, "source": source_name,
             "events_added": len(records), "bytes_skipped": skipped}
 
@@ -313,14 +321,17 @@ def overview(now=None):
                 "ORDER BY ts DESC, id DESC LIMIT 12", (now - 86400,)
             )
         ]
-    active = state is not None and now - state["last_poll"] <= 180
+    from gotchi_settings import load
+    settings = load()
+    paused = not settings['monitor_enabled']
+    active = not paused and state is not None and now - state["last_poll"] <= max(180, settings['interval'] * 3)
     severity = max((SEVERITY[a["severity"]] for a in alerts if now - a["ts"] <= 3600), default=0)
     mood = "sleeping" if not active else (
         "critical" if severity >= 3 else "alert" if severity == 2 else
         "watchful" if severity == 1 else "calm"
     )
     return {
-        "status": "running" if active else "stale",
+        "status": "paused" if paused else "running" if active else "stale",
         "last_poll": state["last_poll"] if state else None,
         "log_status": state["log_status"] if state else "unavailable",
         "source": state["source_name"] if state else None,
@@ -338,11 +349,11 @@ def overview(now=None):
 def main():
     parser = argparse.ArgumentParser(description="Read-only SecuriGotchi local monitoring collector")
     parser.add_argument("command", choices=["once", "watch", "status"])
-    parser.add_argument("--interval", type=int, default=60, help="Seconds between polls (10-3600)")
-    parser.add_argument("--source", choices=["auto", "file", "journal", "windows", "macos"], default="auto")
-    parser.add_argument("--notify", action="store_true", help="Opt-in desktop notifications (watch only)")
-    parser.add_argument("--notify-level", choices=["warning", "high", "critical"], default="high")
-    parser.add_argument("--network", action="store_true", help="Opt-in Windows Wi-Fi health")
+    parser.add_argument("--interval", type=int, default=None, help="Override saved poll interval (10-3600)")
+    parser.add_argument("--source", choices=["auto", "file", "journal", "windows", "macos"], default=None)
+    parser.add_argument("--notify", action="store_true", default=None, help="Override saved notification opt-in (watch only)")
+    parser.add_argument("--notify-level", choices=["warning", "high", "critical"], default=None)
+    parser.add_argument("--network", action="store_true", default=None, help="Override saved Wi-Fi opt-in")
     parser.add_argument("--discover-network", metavar="CIDR", help="Opt-in ping discovery on an authorized directly connected private /24-/30 subnet; repeats every five minutes")
     args = parser.parse_args()
     if args.discover_network:
@@ -354,36 +365,59 @@ def main():
         args.network = True
     if args.notify and args.command != "watch":
         parser.error("--notify requires the watch command")
-    if not 10 <= args.interval <= 3600:
+    if args.interval is not None and not 10 <= args.interval <= 3600:
         parser.error("--interval must be between 10 and 3600 seconds")
     if args.command == "status":
         import json
         print(json.dumps(overview(), indent=2))
         return
     if args.command == "once":
-        print(run_once(source=args.source, network=args.network, discover_network=args.discover_network))
+        from gotchi_settings import load
+        cfg = collector_options(args, load())
+        print(run_once(source=cfg['source'], network=cfg['network_enabled'], discover_network=cfg['discovery_cidr']))
         return
     notifier = None
-    if args.notify:
-        import shutil as _shutil
-        if not _shutil.which("notify-send"):
-            parser.error("notify-send is missing. Install libnotify-bin or omit --notify.")
-        from gotchi_notifications import enable_notifications, deliver_pending
-        notifier = deliver_pending
     print("Monitoring locally; Ctrl+C to stop. No firewall changes or port scans.")
     if args.discover_network:
         print("Authorized ping discovery enabled on " + args.discover_network)
     try:
         with exclusive_watch_lock():
-            if notifier:
-                enable_notifications()  # Before first poll; no historical alert replay.
             while True:
-                print(run_once(source=args.source, network=args.network, discover_network=args.discover_network), flush=True)
+                from gotchi_settings import load, record_runtime
+                cfg = collector_options(args, load())
+                record_runtime({key: value for key, value in vars(args).items() if value is not None and key != 'command'}, cfg)
+                if not cfg['monitor_enabled']:
+                    time.sleep(5)
+                    continue
+                print(run_once(source=cfg['source'], network=cfg['network_enabled'], discover_network=cfg['discovery_cidr']), flush=True)
+                if cfg['notifications_enabled'] and not notifier:
+                    if shutil.which('notify-send'):
+                        from gotchi_notifications import enable_notifications, deliver_pending
+                        enable_notifications()
+                        notifier = deliver_pending
+                if not cfg['notifications_enabled']:
+                    notifier = None
                 if notifier:
-                    notifier(min_level=args.notify_level)
-                time.sleep(args.interval)
+                    notifier(min_level=cfg['notification_level'])
+                # Revisit settings within five seconds, even after a long poll interval.
+                for _ in range(0, cfg['interval'], 5):
+                    time.sleep(min(5, cfg['interval'] - _))
+                    if collector_options(args, load()) != cfg:
+                        break
     except KeyboardInterrupt:
         print("\nCollector stopped.")
+
+
+def collector_options(args, settings):
+    result = dict(settings)
+    for cli, key in (('interval', 'interval'), ('source', 'source'), ('network', 'network_enabled'), ('notify', 'notifications_enabled'), ('notify_level', 'notification_level')):
+        if getattr(args, cli, None) is not None:
+            result[key] = getattr(args, cli)
+    explicit = getattr(args, 'discover_network', None)
+    result['discovery_cidr'] = explicit or (settings['discovery_cidr'] if settings['discovery_enabled'] else None)
+    if explicit:
+        result['network_enabled'] = True
+    return result
 
 
 if __name__ == "__main__":
