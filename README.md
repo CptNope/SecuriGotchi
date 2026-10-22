@@ -130,3 +130,12 @@ A 24-hour aggregated failure chart is available in the signed-in dashboard. Inst
 ## Phase 8: Local AI Operations Center
 
 The authenticated dashboard now contains optional local Ollama diagnostics, discovery of installed models and an explicitly requested read-only incident explanation. The collector must be running and Ollama must be listening on `127.0.0.1:11434`. Aggregate, redacted monitoring information is sent only to the selected local model; no cloud provider is configured. The backend enforces CSRF, a single in-flight analysis, model validation, and localhost-only Ollama requests. Reports are advisory, not evidence of compromise. **Do not expose Flask or Ollama on the public internet.**
+
+## Phase 9: Installation diagnostics
+
+Run `python gotchi_doctor.py` for a non-destructive Python/dependency, admin,
+session-key, collector and optional integration health report. Use
+`python gotchi_doctor.py --json` for structured output. Additional bounded
+read-only OS-log and local Ollama probes are **opt-in** with
+`--probe-logs --probe-ollama`. It does not perform installation or
+auto-remediation. See [Setup Doctor guide](docs/setup-doctor.md).
