@@ -1,14 +1,15 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#07121b">
+<meta name="theme-color" content="#07121b"><meta name="csrf-token" content="{{ csrf }}">
 <title>SecuriGotchi | Local Security Companion</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
 </head><body>
 <header class="masthead"><div class="shell headrow">
 <div><p class="eyebrow">LOCAL SECURITY COMPANION</p><h1>🛡️ SecuriGotchi</h1></div>
-<span class="pill" id="chain-status" role="status" aria-live="polite">Checking ledger…</span>
+<div><span class="pill" id="chain-status" role="status" aria-live="polite">Checking ledger…</span>
+<form method="post" action="{{ url_for('logout') }}" class="logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Sign out</button></form></div>
 </div></header>
 <main class="shell dashboard">
 <section class="panel" aria-labelledby="brain-title">
@@ -17,16 +18,22 @@
 <div class="stat"><span>Level</span><strong id="brain-level">—</strong></div>
 <div class="stat"><span>Mode</span><strong id="brain-mode">—</strong></div>
 <div class="stat"><span>Memories</span><strong id="brain-count">—</strong></div></div>
-<p class="hint">All application state stays on this computer. Hash-chaining is tamper-evident, not an immutable blockchain.</p>
-</section>
+<p class="hint">Local-only application state. Hash chaining is tamper-evident, not an immutable blockchain.</p></section>
 <section class="panel" aria-labelledby="query-title"><h2 id="query-title">🔎 Semantic Memory Search</h2>
 <form id="query-form"><label for="query-input">Search previous diagnostics and missions</label>
 <div class="searchrow"><input id="query-input" type="search" maxlength="500" placeholder="What did I investigate?" required><button type="submit">Search</button></div>
 </form><div id="query-results" class="results" aria-live="polite">Optional AI packages enable semantic search.</div></section>
+<section class="panel" aria-labelledby="threat-title"><h2 id="threat-title">🛡️ SSH Threat Snapshot</h2>
+<p id="threat-availability" role="status">Checking local SSH authentication log…</p>
+<div class="statgrid">
+<div class="stat"><span>Failed logins</span><strong id="threat-failed">—</strong></div>
+<div class="stat"><span>Invalid users</span><strong id="threat-invalid">—</strong></div>
+<div class="stat"><span>Accepted logins</span><strong id="threat-accepted">—</strong></div>
+<div class="stat"><span>Failure sources</span><strong id="threat-sources">—</strong></div></div>
+<p id="threat-note" class="hint"></p><button type="button" id="refresh-threats">Refresh snapshot</button></section>
 <section class="panel" aria-labelledby="log-title"><h2 id="log-title">📜 Memory Activity</h2>
 <div id="memory-entries" class="log" aria-live="polite">Loading activity…</div></section>
 <section class="panel" aria-labelledby="plugins-title"><h2 id="plugins-title">🧩 Local Security Tools</h2>
-<p>Browser-based scan execution is disabled until secure authentication, per-tool authorization, and target consent are implemented.</p>
-<p>Run trusted plugins locally:</p><code>python plugin_runner.py</code>
-<p class="hint">Only scan devices and networks you own or are authorized to test.</p></section>
+<p>Browser-based scanning remains disabled. Only use trusted CLI plugins after reviewing source and obtaining target authorization.</p>
+<code>python plugin_runner.py</code></section>
 </main><footer class="shell footer">SecuriGotchi · Local-first cybersecurity companion</footer></body></html>

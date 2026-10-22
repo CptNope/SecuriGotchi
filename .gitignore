@@ -10,3 +10,7 @@ gotchi_vector_store/
 gotchi_memory/
 .pytest_cache/
 .DS_Store
+auth.sqlite3
+auth.sqlite3-*
+flask_signing_key.bin
+.securigotchi/
