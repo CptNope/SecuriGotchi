@@ -69,5 +69,42 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) { output.textContent = error.message; }
   });
   el('refresh-threats').addEventListener('click', loadStatus);
+  const moodLabels = {sleeping:'Sleeping',calm:'All clear',watchful:'Watchful',alert:'On alert',critical:'High alert'};
+  async function loadMonitor() {
+    try {
+      const data = await api('/api/monitor');
+      const mood = moodLabels[data.mood] ? data.mood : 'sleeping';
+      el('gotchi-sprite').className = 'gotchi-sprite mood-' + mood;
+      el('gotchi-mood').textContent = moodLabels[mood];
+      el('collector-state').textContent = data.status === 'running' ? 'Monitoring local system' :
+        data.status === 'stale' ? 'Collector stopped or stale' : 'Collector not started';
+      el('monitor-failed').textContent = data.events_24h.failed || 0;
+      el('monitor-invalid').textContent = data.events_24h.invalid_user || 0;
+      el('monitor-disk').textContent = data.health?.disk_percent == null ? 'N/A' : data.health.disk_percent + '%';
+      el('monitor-memory').textContent = data.health?.memory_percent == null ? 'N/A' : data.health.memory_percent + '%';
+      el('monitor-note').textContent = 'SSH log: ' + data.log_status +
+        (data.bytes_skipped ? ' · ' + data.bytes_skipped + ' bytes skipped (log overflow)' : '') +
+        '. Collector must run separately.';
+      const alerts = el('monitor-alerts');
+      alerts.replaceChildren();
+      if (!data.alerts.length) alerts.textContent = 'No recent alerts.';
+      data.alerts.forEach(item => {
+        const line = document.createElement('div');
+        line.className = 'monitor-alert level-' + item.severity;
+        const label = document.createElement('strong');
+        label.textContent = item.severity.toUpperCase() + ' · ' + item.title;
+        const detail = document.createElement('span');
+        detail.textContent = item.detail;
+        line.append(label, detail);
+        alerts.appendChild(line);
+      });
+    } catch (error) {
+      el('collector-state').textContent = 'Monitor unavailable';
+      el('monitor-note').textContent = error.message;
+    }
+  }
+  el('refresh-monitor').addEventListener('click', loadMonitor);
   loadStatus();
+  loadMonitor();
+  setInterval(loadMonitor, 30000);
 });

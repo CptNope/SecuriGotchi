@@ -12,6 +12,22 @@
 <form method="post" action="{{ url_for('logout') }}" class="logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Sign out</button></form></div>
 </div></header>
 <main class="shell dashboard">
+<section class="panel gotchi-panel" aria-labelledby="gotchi-title">
+<h2 id="gotchi-title">👾 Your Security Companion</h2>
+<div class="gotchi-stage">
+<div class="gotchi-sprite" id="gotchi-sprite" aria-hidden="true"><div class="gotchi-eyes"><i></i><i></i></div><div class="gotchi-mouth"></div></div>
+<div><p id="gotchi-mood" class="mood-label" aria-live="polite">Sleeping</p><p id="collector-state">Start the local monitor to wake your Gotchi.</p><p class="hint">Security events influence mood, not XP.</p></div>
+</div></section>
+<section class="panel" aria-labelledby="monitor-title">
+<h2 id="monitor-title">📡 Live Monitor</h2>
+<div class="statgrid"><div class="stat"><span>SSH failures · 24h</span><strong id="monitor-failed">—</strong></div>
+<div class="stat"><span>Invalid users · 24h</span><strong id="monitor-invalid">—</strong></div>
+<div class="stat"><span>Disk usage</span><strong id="monitor-disk">—</strong></div>
+<div class="stat"><span>Memory usage</span><strong id="monitor-memory">—</strong></div></div>
+<p class="hint" id="monitor-note">Collector not started.</p>
+<h3>Recent alerts</h3><div id="monitor-alerts" role="status" aria-live="polite">No alerts loaded.</div>
+<button id="refresh-monitor" type="button">Refresh monitor</button>
+</section>
 <section class="panel" aria-labelledby="brain-title">
 <h2 id="brain-title">🧠 Gotchi Status</h2><div class="statgrid">
 <div class="stat"><span>XP</span><strong id="brain-xp">—</strong></div>
