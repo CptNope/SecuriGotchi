@@ -13,22 +13,29 @@ from pathlib import Path
 import secrets
 import sqlite3
 import stat
+from gotchi_platform import default_data_dir
 
 ADMIN_USERNAME = "admin"
 SCHEME = "scrypt-v1"
 N, R, P = 2**14, 8, 1
 
 
+def _owned_by_me(info):
+    return os.name == "nt" or (
+        hasattr(os, "getuid") and info.st_uid == os.getuid()
+    )
+
+
 def data_dir():
     configured = os.environ.get("SECURIGOTCHI_DATA_DIR")
-    path = Path(configured).expanduser() if configured else Path.home() / ".local" / "share" / "securigotchi"
+    path = Path(configured).expanduser() if configured else default_data_dir()
     path = path.absolute()
     if path.is_symlink():
         raise RuntimeError("Security data directory may not be a symlink")
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if not path.is_dir() or path.stat().st_uid != os.getuid():
+    if not path.is_dir() or not _owned_by_me(path.stat()):
         raise RuntimeError("Security data directory must be owned by the current user")
-    if stat.S_IMODE(path.stat().st_mode) & 0o077:
+    if os.name != "nt" and stat.S_IMODE(path.stat().st_mode) & 0o077:
         raise RuntimeError("Security data directory must have 0700 permissions")
     return path
 
@@ -43,9 +50,9 @@ def _prepare_database():
     descriptor = os.open(path, flags, 0o600)
     try:
         info = os.fstat(descriptor)
-        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+        if not stat.S_ISREG(info.st_mode) or not _owned_by_me(info):
             raise RuntimeError("Credentials database must be a regular file owned by this user")
-        if stat.S_IMODE(info.st_mode) & 0o077:
+        if os.name != "nt" and stat.S_IMODE(info.st_mode) & 0o077:
             raise RuntimeError("Credentials database must be private (0600)")
     finally:
         os.close(descriptor)

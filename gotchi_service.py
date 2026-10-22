@@ -6,6 +6,7 @@ available. To avoid accidental remote access, the unit runs only the collector.
 import argparse
 from pathlib import Path
 import os
+import platform
 
 
 def _checked_path(path):
@@ -64,6 +65,8 @@ def main():
     parser.add_argument("--notify-level", choices=["warning", "high", "critical"], default="high")
     parser.add_argument("--replace", action="store_true", help="Overwrite an existing generated unit")
     args = parser.parse_args()
+    if platform.system() != "Linux":
+        parser.error("systemd user units are supported on Linux only")
     repo = Path(__file__).resolve().parent
     if not (repo / ".venv" / "bin" / "python").is_file():
         parser.error("Create .venv first with bash secgotchi_install.sh")

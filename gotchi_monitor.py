@@ -5,7 +5,6 @@ The collector never executes plugins, changes firewall rules, or uses sudo.
 Event timestamps are ingestion times, not source-log timestamps.
 """
 import argparse
-import fcntl
 from collections import Counter
 from contextlib import closing
 import os
@@ -18,6 +17,8 @@ import time
 from contextlib import contextmanager
 
 from gotchi_auth import data_dir
+from gotchi_platform import system_health
+from gotchi_lock import exclusive_watch_lock
 from gotchi_threats import DEFAULT_LOGS, _source_ip
 
 MAX_READ_BYTES = 1024 * 1024
@@ -77,24 +78,7 @@ def connect():
 
 
 def sample_health():
-    disk = shutil.disk_usage(Path.home())
-    disk_percent = round(100 * disk.used / disk.total, 1) if disk.total else None
-    memory_percent = None
-    try:
-        info = {}
-        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
-            key, _, remainder = line.partition(":")
-            if key in ("MemTotal", "MemAvailable"):
-                info[key] = int(remainder.strip().split()[0])
-        if info.get("MemTotal", 0) and "MemAvailable" in info:
-            memory_percent = round(100 * (1 - info["MemAvailable"] / info["MemTotal"]), 1)
-    except (FileNotFoundError, PermissionError, ValueError, IndexError):
-        pass
-    try:
-        load_avg = round(os.getloadavg()[0], 2)
-    except (AttributeError, OSError):
-        load_avg = None
-    return {"disk_percent": disk_percent, "memory_percent": memory_percent, "load_avg": load_avg}
+    return system_health()
 
 
 def parse_ssh_line(line):
@@ -298,26 +282,6 @@ def overview(now=None):
         "alerts": alerts,
         "mood": mood,
     }
-
-
-@contextmanager
-def exclusive_watch_lock():
-    """One active watch loop per user data directory (Linux/WSL)."""
-    lock = data_dir() / "monitor-watch.lock"
-    fd = os.open(
-        lock, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600
-    )
-    try:
-        info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
-            raise RuntimeError("Monitor watch lock must be private and user-owned")
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise RuntimeError("Another monitor watch process is already running") from exc
-        yield
-    finally:
-        os.close(fd)
 
 
 def main():
