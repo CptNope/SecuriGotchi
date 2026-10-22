@@ -1,133 +1,67 @@
-# SecuriGotchi: Cybersecurity Companion with Blockchain Memory, RAG, and Modular Plugins
+# SecuriGotchi — local cybersecurity companion
 
-**SecuriGotchi** is a cyberpunk-inspired, terminal-based AI companion designed to run on Raspberry Pi, Ubuntu, or WSL with Kali Linux. It combines **gamified missions**, **diagnostics**, **AI chat**, and **immutable blockchain-style memory logging** — now enhanced with **vector search + RAG (Retrieval-Augmented Generation)** for intelligent memory recall.
+SecuriGotchi is a local-first gamified Python security companion for Ubuntu, WSL, and Raspberry Pi. It provides mission XP, a tamper-evident SHA-256 activity log, optional GPG signatures, optional ChromaDB semantic memory, local Ollama chat, CLI plugins, and a localhost dashboard.
 
----
+> **Security notice:** This project has no account registration, multi-user permissions, device enrollment, or secure remote access yet. The web dashboard is read-only for plugins and must not be exposed to the public internet.
 
-## 📦 Key Features
-
-| Feature                      | Description                                                                 |
-|------------------------------|-----------------------------------------------------------------------------|
-| 🧠 Memory + XP               | Earn XP and track progress with persistent JSON state                       |
-| 🔗 Blockchain Memory         | Immutable memory ledger (`gotchi_chain.json`) with SHA-256 chaining        |
-| ✍️ GPG Signing               | Cryptographically signs the memory chain (`gotchi_chain.json.sig`)         |
-| 📜 Memory Changelog          | Human-readable XP log (`gotchi_memory_changelog.txt`)                      |
-| 🧩 Modular Plugin System     | Drop-in tools and missions extend Gotchi’s abilities                        |
-| 🔍 Vector Search (ChromaDB)  | Store and query memory embeddings for similarity retrieval                  |
-| 🧠 RAG Memory Recall         | Ask questions and receive contextual memory-based answers                   |
-| 🔒 Mode Levels               | Observer → Full-Control autonomy with XP-based access                       |
-| ⚠️ Threat Monitor            | Monitors `/var/log/auth.log` for intrusion attempts                         |
-| 📊 System Diagnostics        | View CPU, RAM, disk, and open ports in terminal                             |
-
----
-
-## 📂 Directory Overview
-
-```
-.
-├── gotchi_brain.json             # Core XP, memory, and autonomy mode
-├── gotchi_chain.json             # Blockchain-style immutable XP ledger
-├── gotchi_chain.json.sig         # GPG signature of chain
-├── gotchi_chain.py               # Chain logic + GPG sign/verify
-├── gotchi_memory.py              # Adds memory, XP, vector, and changelog
-├── gotchi_memory_changelog.txt   # Human-readable log of memory entries
-├── gotchi_vector.py              # Embedding + vector store operations (ChromaDB)
-├── gotchi_query.py               # Ask questions via vector + RAG
-├── secgotchi_install.sh          # Universal installer (Ubuntu/WSL/RPi)
-├── README.md                     # You're reading it
-```
-
----
-
-## 🧠 New AI Features (Vector + RAG)
-
-- All memory entries are embedded and stored in a **vector database**
-- Use `gotchi_query.py` to search memory by meaning, not keywords:
+## Install (Python 3.11+)
 
 ```bash
-python gotchi_query.py "What scans did I run this week?"
+git clone https://github.com/CptNope/SecuriGotchi.git
+cd SecuriGotchi
+bash secgotchi_install.sh
+.venv/bin/python gotchi_webui.py
 ```
 
-- Returns top 3 matches with context-aware results (powered by SentenceTransformers)
-- Can integrate with Ollama to generate full natural language responses (optional)
+Open **http://127.0.0.1:5000** on the same computer. The installer creates a Python virtual environment and installs the lightweight Flask core. It does not perform sudo changes or system-wide pip installs.
 
----
-
-## 🧩 Plugin Scope Overview
-
-### 🔍 Recon & Scanning
-- `Metasploit Basic Scan`  
-- `Nikto Web Scan`  
-- `Nmap Top Ports`  
-- `Reverse DNS Scan`
-
-### 📡 System Diagnostics
-- `Netstat Summary`  
-- `Fail2Ban Status`  
-- `UID Check`  
-- `Environment Vars`
-
-### 🛡 Security + Hardening
-- `List SUID Binaries`  
-- `SSH Honeypot Check`  
-- `User Enumeration`
-
-### 🧪 Tools
-- `WHOIS Lookup`  
-- `Traceroute Tool`  
-- `GeoIP Lookup`  
-- `TCPDump Sniffer`
-
----
-
-## ✅ GPG Setup
-
-Run once:
-```bash
-gpg --full-generate-key
-gpg --list-keys
-```
-
-All XP entries are:
-- Logged to `gotchi_brain.json`
-- Added to `gotchi_chain.json`
-- Signed to `gotchi_chain.json.sig`
-- Logged in `gotchi_memory_changelog.txt`
-- Embedded into the vector DB
-
----
-
-## 🔍 Validate the Memory Chain
+For optional semantic memory:
 
 ```bash
-gpg --verify gotchi_chain.json.sig gotchi_chain.json
+bash secgotchi_install.sh --with-ai
+.venv/bin/python gotchi_memory.py "Completed authorized SSH audit" 25
+.venv/bin/python gotchi_query.py "SSH audit" --page 1 --page-size 3
 ```
 
-Or:
-```python
-from gotchi_chain import validate_chain
-print(validate_chain())
-```
-
----
-
-## 🚀 Add an XP Entry
+The first vector query may download an embedding model and can require substantial RAM. Ollama is a separate optional local service. Pull the model configured in `gotchi_ai_config.json`, start Ollama on loopback, then run:
 
 ```bash
-python gotchi_memory.py "Completed SSH Audit" 25
+.venv/bin/python gotchi_agent.py
 ```
 
----
+## Local-only tools
 
-## 🧱 Future Features (Planned)
+```bash
+.venv/bin/python gotchi_mission.py list
+.venv/bin/python gotchi_mission.py run 2
+.venv/bin/python plugin_runner.py
+```
 
-- 🌐 Remote syncing via Git or API
-- 🔑 Public key identity system for verifiable Gotchis
-- 📦 `.deb` and `.img` install packages
-- 🧠 Ollama-based conversation agent (LLM)
-- 🕸 Web dashboard with mission logs, threat stats, and gotchi health
+Only test systems and networks you own or have permission to inspect. Missions require explicit confirmation and no longer run through a shell. **Legacy plugins still need independent review**: many use shell commands and some are interactive. Do not run untrusted plugins or allow remote users to invoke them.
 
----
+## Verify the activity ledger
 
-Built by [Jeremy Anderson](https://jeremyanderson.tech)  
-GitHub: [CptNope/SecuriGotchi](https://github.com/CptNope/SecuriGotchi)
+```bash
+.venv/bin/python gotchi_chain.py
+```
+
+Ledger blocks include the SHA-256 hash of their contents plus a previous-hash reference. Every block, including genesis, is checked. When GPG signing succeeds, the complete ledger is detached-signed. Without an available signing key the ledger is marked unsigned, even if its hashes are internally consistent. Hash chains are not immutable, decentralized blockchains. Runtime state is not encrypted at rest.
+
+## Development
+
+```bash
+.venv/bin/python -m compileall -q gotchi_agent.py gotchi_chain.py gotchi_memory.py gotchi_mission.py gotchi_query.py gotchi_vector.py gotchi_webui.py plugin_manager.py plugin_runner.py plugins
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+GitHub Actions runs core syntax/tests on supported Python versions. Optional AI dependencies are not included in the core CI run.
+
+## Further improvements
+
+1. Move all runtime data to a dedicated directory; implement atomic multi-file transactions, locking, migration and backups.
+2. Add local registration and login, CSRF tokens, roles, per-tool authorization and a remote access threat model.
+3. Rewrite legacy plugins as permission-scoped, sandboxed, argument-validated and timeout-limited subprocesses.
+4. Add dependency lockfiles, broader CI, tested Chroma migrations, signed manifest verification and Ollama integration tests.
+5. Improve Raspberry Pi touchscreen interface and device-local notification support.
+
+© Jeremy Anderson · [Jeremy Anderson Tech](https://jeremyanderson.tech)

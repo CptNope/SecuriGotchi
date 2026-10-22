@@ -1,126 +1,57 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Check chain validity
-    fetch('/api/chain_verify')
-        .then(response => response.json())
-        .then(data => {
-            const statusElement = document.getElementById('chain-status');
-            if (data.valid) {
-                statusElement.textContent = 'Chain Status: ✅ Valid';
-                statusElement.classList.add('valid');
-            } else {
-                statusElement.textContent = 'Chain Status: ❌ Invalid';
-                statusElement.classList.add('invalid');
-            }
-        });
-    
-    // Load brain info
-    fetch('/api/brain')
-        .then(response => response.json())
-        .then(data => {
-            const brainInfo = document.getElementById('brain-info');
-            brainInfo.innerHTML = `
-                <p><strong>XP:</strong> ${data.xp || 0}</p>
-                <p><strong>Level:</strong> ${Math.floor((data.xp || 0) / 100) + 1}</p>
-                <p><strong>Mode:</strong> ${data.mode || 'Standard'}</p>
-                <p><strong>Memory Entries:</strong> ${data.memory_count || 0}</p>
-            `;
-        });
-    
-    // Load memory entries
-    fetch('/api/memory')
-        .then(response => response.json())
-        .then(data => {
-            const memoryEntries = document.getElementById('memory-entries');
-            if (data.length === 0) {
-                memoryEntries.innerHTML = '<p class="text-muted">No memory entries yet.</p>';
-                return;
-            }
-            
-            memoryEntries.innerHTML = '';
-            data.slice(-20).reverse().forEach(entry => {
-                const entryDiv = document.createElement('div');
-                entryDiv.className = 'memory-entry';
-                entryDiv.textContent = entry;
-                memoryEntries.appendChild(entryDiv);
-            });
-        });
-    
-    // Handle memory query
-    document.getElementById('query-button').addEventListener('click', function() {
-        const query = document.getElementById('query-input').value.trim();
-        if (!query) return;
-        
-        const resultsDiv = document.getElementById('query-results');
-        resultsDiv.innerHTML = '<p class="text-center">Searching...</p>';
-        
-        fetch('/api/query', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ query: query })
-        })
-        .then(response => response.json())
-        .then(data => {
-            resultsDiv.innerHTML = '';
-            if (data.length === 0) {
-                resultsDiv.innerHTML = '<p class="text-center text-muted">No results found.</p>';
-                return;
-            }
-            
-            data.forEach(result => {
-                const resultDiv = document.createElement('div');
-                resultDiv.className = 'query-result';
-                resultDiv.innerHTML = `
-                    <div class="score">Relevance: ${(result.score * 100).toFixed(1)}%</div>
-                    <div class="content">${result.content}</div>
-                `;
-                resultsDiv.appendChild(resultDiv);
-            });
-        });
-    });
-    
-    // Handle plugin form submission
-    document.getElementById('plugin-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const plugin = document.getElementById('plugin-select').value;
-        const target = document.getElementById('target-input').value;
-        
-        fetch('/api/run_plugin', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ plugin: plugin, target: target })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert('Error: ' + data.error);
-                return;
-            }
-            
-            alert('Plugin executed successfully!');
-            // Refresh memory entries
-            fetch('/api/memory')
-                .then(response => response.json())
-                .then(memData => {
-                    const memoryEntries = document.getElementById('memory-entries');
-                    memoryEntries.innerHTML = '';
-                    memData.slice(-20).reverse().forEach(entry => {
-                        const entryDiv = document.createElement('div');
-                        entryDiv.className = 'memory-entry';
-                        entryDiv.textContent = entry;
-                        memoryEntries.appendChild(entryDiv);
-                    });
-                });
-        });
-    });
-    
-    // Add Enter key support for query
-    document.getElementById('query-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            document.getElementById('query-button').click();
-        }
-    });
+/* Only textContent for untrusted memory. */
+document.addEventListener('DOMContentLoaded', () => {
+  const el = id => document.getElementById(id);
+  async function api(url, options) {
+    const response = await fetch(url, options);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Request failed');
+    return payload;
+  }
+  async function loadStatus() {
+    try {
+      const [brain, chain, memory] = await Promise.all([
+        api('/api/brain'), api('/api/chain_verify'), api('/api/memory')
+      ]);
+      el('brain-xp').textContent = brain.xp;
+      el('brain-level').textContent = brain.level;
+      el('brain-mode').textContent = brain.mode;
+      el('brain-count').textContent = brain.memory_count;
+      const status = el('chain-status');
+      status.textContent = chain.valid ? '✓ Signed ledger verified' :
+        chain.blocks_valid ? '⚠ Ledger unsigned' : '⚠ Ledger invalid';
+      status.classList.add(chain.valid ? 'valid' : 'invalid');
+      const log = el('memory-entries');
+      log.replaceChildren();
+      if (!memory.length) log.textContent = 'No activity recorded yet.';
+      memory.slice(-20).reverse().forEach(line => {
+        const item = document.createElement('div');
+        item.className = 'logentry';
+        item.textContent = line;
+        log.appendChild(item);
+      });
+    } catch (error) {
+      el('chain-status').textContent = 'Unavailable';
+      el('memory-entries').textContent = error.message;
+    }
+  }
+  el('query-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const output = el('query-results');
+    output.textContent = 'Searching…';
+    try {
+      const results = await api('/api/query', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: el('query-input').value.trim()})
+      });
+      output.replaceChildren();
+      if (!results.length) output.textContent = 'No matching memories.';
+      results.forEach(item => {
+        const entry = document.createElement('div');
+        entry.className = 'result';
+        entry.textContent = item.content;
+        output.appendChild(entry);
+      });
+    } catch (error) { output.textContent = error.message; }
+  });
+  loadStatus();
 });

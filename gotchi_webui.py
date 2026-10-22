@@ -1,67 +1,84 @@
-from flask import Flask, render_template, request, jsonify
-import json
+"""Local-only, read-only dashboard: never expose plugin execution to HTTP."""
 import os
-import subprocess
-from datetime import datetime
-import gotchi_query
-import gotchi_memory
-import gotchi_chain
+from pathlib import Path
+
+from flask import Flask, jsonify, render_template, request
+from gotchi_chain import validate_chain, validate_blocks, load_chain, verify_signature, CHAIN_FILE
+from gotchi_memory import load_brain, changelog_path
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
 
-@app.route('/')
+
+@app.after_request
+def security_headers(response):
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; style-src 'self' https://cdn.jsdelivr.net; "
+        "script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    )
+    return response
+
+
+@app.get("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/api/brain')
+
+@app.get("/api/brain")
 def get_brain():
-    with open('gotchi_brain.json', 'r') as f:
-        brain = json.load(f)
-    return jsonify(brain)
+    brain = load_brain()
+    return jsonify({
+        "xp": brain.get("xp", 0),
+        "level": brain.get("level", 1),
+        "mode": brain.get("mode", {}).get("name", "observer"),
+        "memory_count": len(brain.get("memory_log", [])),
+    })
 
-@app.route('/api/memory')
+
+@app.get("/api/memory")
 def get_memory():
-    with open('gotchi_memory_changelog.txt', 'r') as f:
-        memory = f.readlines()
-    return jsonify(memory)
+    path = Path(changelog_path)
+    return jsonify(path.read_text(encoding="utf-8").splitlines()[-100:] if path.exists() else [])
 
-@app.route('/api/query', methods=['POST'])
+
+@app.post("/api/query")
 def query_memory():
-    query = request.json.get('query', '')
-    results = gotchi_query.search_memory(query, top_k=5)
-    return jsonify(results)
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("query"), str):
+        return jsonify({"error": "A JSON query string is required"}), 400
+    query = data["query"].strip()
+    if not 1 <= len(query) <= 500:
+        return jsonify({"error": "Query must be 1-500 characters"}), 400
+    try:
+        from gotchi_query import get_results
+        return jsonify([{"content": text} for text in get_results(query, results_per_page=5)])
+    except (ImportError, RuntimeError, OSError) as exc:
+        app.logger.warning("Semantic memory unavailable: %s", exc)
+        return jsonify({"error": "Semantic memory unavailable; install optional AI dependencies"}), 503
 
-@app.route('/api/run_plugin', methods=['POST'])
+
+@app.post("/api/run_plugin")
 def run_plugin():
-    plugin_name = request.json.get('plugin', '')
-    target = request.json.get('target', '')
-    
-    # Security check - validate plugin name against allowed list
-    allowed_plugins = [
-        'Metasploit Basic Scan', 'Nikto Web Scan', 'Nmap Top Ports', 
-        'Reverse DNS Scan', 'Netstat Summary', 'Fail2Ban Status',
-        'UID Check', 'Environment Vars', 'List SUID Binaries',
-        'SSH Honeypot Check', 'User Enumeration', 'WHOIS Lookup',
-        'Traceroute Tool', 'GeoIP Lookup', 'TCPDump Sniffer'
-    ]
-    
-    if plugin_name not in allowed_plugins:
-        return jsonify({"error": "Invalid plugin"}), 400
-    
-    # Run the plugin and add to memory
-    result = f"Ran {plugin_name} on {target} at {datetime.now().isoformat()}"
-    gotchi_memory.add_memory_entry(f"Plugin: {plugin_name}", f"Target: {target}", result)
-    
-    # Update and sign the chain
-    gotchi_chain.update_chain()
-    
-    return jsonify({"success": True, "result": result})
+    # Plugins include privileged shell commands and interactive prompts.
+    # No authentication, authorization, or execution sandbox exists yet.
+    return jsonify({
+        "error": "Browser plugin execution is disabled until authentication and per-tool permissions are implemented. Run trusted plugins locally via plugin_runner.py."
+    }), 403
 
-@app.route('/api/chain_verify')
+
+@app.get("/api/chain_verify")
 def verify_chain():
-    result = subprocess.run(['python', 'gotchi_chain.py', '--verify'], 
-                           capture_output=True, text=True)
-    return jsonify({"valid": "Signature verified successfully" in result.stdout})
+    try:
+        blocks_valid = validate_blocks(load_chain())
+        signed = verify_signature(CHAIN_FILE) if blocks_valid else False
+        return jsonify({"valid": blocks_valid and signed, "blocks_valid": blocks_valid, "signed": signed})
+    except (OSError, ValueError, TypeError, KeyError):
+        return jsonify({"valid": False, "blocks_valid": False, "signed": False})
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+
+if __name__ == "__main__":
+    app.run(host=os.environ.get("SECURIGOTCHI_HOST", "127.0.0.1"), port=5000, debug=False)

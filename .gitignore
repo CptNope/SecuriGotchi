@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+*.log
+gotchi_chain.json
+gotchi_chain.json.sig
+gotchi_memory_changelog.txt
+gotchi_vector_store/
+gotchi_memory/
+.pytest_cache/
+.DS_Store
