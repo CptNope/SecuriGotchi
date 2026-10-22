@@ -10,6 +10,7 @@ files, or require elevated privileges. Optional probes perform bounded reads
 against only local OS security sources or loopback Ollama.
 """
 import argparse
+from contextlib import closing
 import importlib.util
 import json
 import os
@@ -62,7 +63,7 @@ def _admin_status(path):
         return False
     try:
         # Read-only sqlite open; does not initialize tables or mutate credentials.
-        with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=2) as db:
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=2)) as db:
             return db.execute("SELECT 1 FROM admins LIMIT 1").fetchone() is not None
     except (sqlite3.Error, OSError, ValueError):
         return False
