@@ -38,6 +38,22 @@ The signed-in dashboard now displays counts of failed SSH logins, accepted login
 
 If neither default log is readable, set `SECURIGOTCHI_AUTH_LOG` to a local log file you are authorized to read. The dashboard shows an unavailable state rather than requiring elevated permissions. The browser receives summary counts, not raw log lines.
 
+## Phase 3: Opt-in local monitoring
+
+The continuous monitor is **not** started automatically by the web server. Run it in another terminal or supervised OS service:
+
+```bash
+.venv/bin/python gotchi_monitor.py once
+.venv/bin/python gotchi_monitor.py watch --interval 60
+.venv/bin/python gotchi_monitor.py status
+```
+
+The collector reads appended lines from a readable SSH authentication log and samples disk, memory and load. The **first poll starts at the current end of the log**, to avoid treating historical entries as fresh attacks. New log events and alert episodes are saved in a private SQLite database under `SECURIGOTCHI_DATA_DIR`. It keeps events for 7 days and alerts for 30 days. It never runs scans, reads private usernames into the database, or changes firewall rules.
+
+Rules: five SSH failures from the same IP within five minutes trigger **high** severity (ten trigger **critical**); disk/memory thresholds of 80/90/97 percent trigger warning/high/critical respectively. Alert cooldown: 15 minutes per fingerprint, with immediate severity escalation.
+
+The dashboard polls `/api/monitor` every 30 seconds and shows the Gotchi's derived **calm, watchful, alert, critical, or sleeping** mood. It does not award XP for attacks or pretend that monitoring is active when the collector is stale. The system is **not** a general IDS: no journald ingestion, email/push notifications, guaranteed delivery, or malware classification exists yet. Log rotations and large spikes can lose events; skipped bytes are reported, and the file-offset model may need deeper handling on unusual filesystems.
+
 ## Local-only tools
 
 ```bash

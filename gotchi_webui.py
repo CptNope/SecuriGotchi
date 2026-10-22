@@ -10,6 +10,7 @@ from gotchi_auth import has_admin, verify_admin, signing_key
 from gotchi_chain import validate_blocks, load_chain, verify_signature, CHAIN_FILE
 from gotchi_memory import load_brain, changelog_path
 from gotchi_threats import get_snapshot
+from gotchi_monitor import overview
 
 app = Flask(__name__)
 app.config.update(
@@ -164,6 +165,12 @@ def verify_chain():
 @require_admin
 def threats():
     return jsonify(get_snapshot())
+
+
+@app.get("/api/monitor")
+@require_admin
+def monitor_status():
+    return jsonify(overview())
 
 
 if __name__ == "__main__":
