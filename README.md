@@ -126,3 +126,7 @@ GitHub Actions runs core syntax/tests on supported Python versions. Optional AI 
 ## Phase 7: AI and MCP
 
 A 24-hour aggregated failure chart is available in the signed-in dashboard. Install optional MCP dependencies with `.venv/bin/python -m pip install -r requirements-mcp.txt`, then configure a trusted local client to run `gotchi_mcp.py` with `SECURIGOTCHI_MCP_ENABLE=1` as described in [the MCP guide](docs/mcp.md). For opt-in local, advisory-only Ollama explanations use `.venv/bin/python gotchi_explain.py --model llama3`. No web-triggered model execution or remote cloud AI telemetry is enabled.
+
+## Phase 8: Local AI Operations Center
+
+The authenticated dashboard now contains optional local Ollama diagnostics, discovery of installed models and an explicitly requested read-only incident explanation. The collector must be running and Ollama must be listening on `127.0.0.1:11434`. Aggregate, redacted monitoring information is sent only to the selected local model; no cloud provider is configured. The backend enforces CSRF, a single in-flight analysis, model validation, and localhost-only Ollama requests. Reports are advisory, not evidence of compromise. **Do not expose Flask or Ollama on the public internet.**

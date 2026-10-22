@@ -28,6 +28,18 @@
 <h3>Failed logins · 24-hour trend</h3><div class="trend-chart" id="trend-chart" role="img" aria-label="Hourly failed login events">Loading…</div><h3>Recent alerts</h3><div id="monitor-alerts" role="status" aria-live="polite">No alerts loaded.</div>
 <button id="refresh-monitor" type="button">Refresh monitor</button>
 </section>
+<section class="panel ai-panel" aria-labelledby="ai-title">
+<h2 id="ai-title">🧠 AI Operations Center</h2>
+<p id="ai-diagnostics" role="status">Checking local AI and monitoring status…</p>
+<form id="ai-explain-form">
+<label for="ai-model">Choose an installed Ollama model</label>
+<select id="ai-model" required disabled><option value="">Loading models…</option></select>
+<button type="submit" id="ai-run" disabled>Explain recent security activity</button>
+</form>
+<p class="hint">Local Ollama only. Explanations are advisory and may be inaccurate. No security commands are executed.</p>
+<div id="ai-report" class="ai-report" aria-live="polite"></div>
+<button type="button" id="ai-refresh">Refresh AI diagnostics</button>
+</section>
 <section class="panel" aria-labelledby="brain-title">
 <h2 id="brain-title">🧠 Gotchi Status</h2><div class="statgrid">
 <div class="stat"><span>XP</span><strong id="brain-xp">—</strong></div>
