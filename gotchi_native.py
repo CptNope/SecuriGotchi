@@ -154,7 +154,7 @@ def poll_journal(checkpoint=None):
         return NativeBatch("unavailable", "linux-journal", detail="journalctl unavailable")
     argv = ["journalctl", "--no-pager", "-q", "--output=json", "-n", str(MAX_EVENTS), "_COMM=sshd"]
     if checkpoint:
-        argv.insert(5, "--after-cursor=" + checkpoint)
+        argv.insert(6, "--after-cursor=" + checkpoint)
     try:
         events, last_cursor = parse_journal_json(_run(argv))
     except (RuntimeError, ValueError):
