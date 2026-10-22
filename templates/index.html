@@ -28,6 +28,21 @@
 <h3>Failed logins · 24-hour trend</h3><div class="trend-chart" id="trend-chart" role="img" aria-label="Hourly failed login events">Loading…</div><h3>Recent alerts</h3><div id="monitor-alerts" role="status" aria-live="polite">No alerts loaded.</div>
 <button id="refresh-monitor" type="button">Refresh monitor</button>
 </section>
+<section class="panel" aria-labelledby="network-title">
+<h2 id="network-title">📶 Wi-Fi and Local Network</h2>
+<p id="network-state" role="status">Loading network monitoring…</p>
+<div class="statgrid">
+<div class="stat"><span>Wi-Fi network</span><strong id="network-ssid">—</strong></div>
+<div class="stat"><span>Signal</span><strong id="network-signal">—</strong></div>
+<div class="stat"><span>Authentication</span><strong id="network-security">—</strong></div>
+<div class="stat"><span>Local IPv4</span><strong id="network-ip">—</strong></div></div>
+<p id="network-note" class="hint"></p>
+<h3>Devices observed on your network</h3>
+<p id="network-discovery" class="hint"></p>
+<div id="network-devices" class="log"></div>
+<p class="hint">Newly observed means new to this collector, not suspicious. Quiet devices can be missed. Device discovery runs only when enabled in the local collector; refreshing reads stored results.</p>
+<button id="refresh-network" type="button">Refresh network status</button>
+</section>
 <section class="panel ai-panel" aria-labelledby="ai-title">
 <h2 id="ai-title">🧠 AI Operations Center</h2>
 <p id="ai-diagnostics" role="status">Checking local AI and monitoring status…</p>

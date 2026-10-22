@@ -184,6 +184,13 @@ def security_trends():
     return jsonify(trends(24))
 
 
+@app.get("/api/network")
+@require_admin
+def network_status():
+    from gotchi_network import overview as network_overview
+    return jsonify(network_overview())
+
+
 @app.get("/api/ai/diagnostics")
 @require_admin
 def ai_diagnostics():
@@ -207,8 +214,10 @@ def ai_explain():
         return jsonify(analyze(model))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
-    except RuntimeError:
+    except RuntimeError as exc:
         app.logger.warning("Local AI analysis unavailable")
+        if str(exc).startswith("Local Ollama timed out after 180 seconds;"):
+            return jsonify({"error": str(exc)}), 503
         return jsonify({"error": "Local AI unavailable; check Ollama and collector"}), 503
     finally:
         _AI_LIMIT.release()

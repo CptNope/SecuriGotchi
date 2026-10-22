@@ -74,7 +74,7 @@ def _collector_state(path, now):
     if not path.is_file() or path.is_symlink():
         return "not_started"
     try:
-        with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=2) as db:
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=2)) as db:
             row = db.execute("SELECT last_poll,log_status FROM monitor_state WHERE id=1").fetchone()
         if row is None:
             return "not_started"
