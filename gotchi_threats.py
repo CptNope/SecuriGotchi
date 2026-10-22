@@ -7,7 +7,8 @@ import re
 
 MAX_TAIL_BYTES = 1024 * 1024
 SOURCE_RE = re.compile(r"\bfrom\s+([0-9A-Fa-f:.]+)(?:\s|$)")
-DEFAULT_LOGS = ("/var/log/auth.log", "/var/log/secure")
+from gotchi_platform import ssh_text_log_candidates
+DEFAULT_LOGS = ssh_text_log_candidates()
 
 
 def _source_ip(line):

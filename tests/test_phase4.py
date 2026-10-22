@@ -1,5 +1,6 @@
 """No graphical session or privileged systemd daemon required to run these tests."""
 import os
+from contextlib import closing
 from pathlib import Path
 import tempfile
 import unittest
@@ -25,7 +26,7 @@ class Phase4Tests(unittest.TestCase):
         self.temp.cleanup()
 
     def _make_alert(self, when, severity):
-        with monitor.connect() as conn:
+        with closing(monitor.connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO alerts(ts,category,severity,title,detail,fingerprint) VALUES (?,?,?,?,?,?)",
                 (when, "test", severity, "Test alert", "No private data", str(when)),
@@ -59,6 +60,7 @@ class Phase4Tests(unittest.TestCase):
         with monitor.exclusive_watch_lock():
             pass
 
+    @unittest.skipIf(os.name == 'nt', 'systemd unit paths are Linux-only')
     def test_systemd_template_is_opt_in_and_no_web(self):
         unit = render_unit(Path("/home/example/SecuriGotchi"), 60, True, "high")
         self.assertIn("NoNewPrivileges=true", unit)

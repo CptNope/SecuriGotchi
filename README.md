@@ -4,6 +4,12 @@ SecuriGotchi is a local-first gamified Python security companion for Ubuntu, WSL
 
 > **Security notice:** Phase 2 adds **one local administrator account**, created only from the terminal, and protected dashboard sessions. There is no public sign-up, device enrollment, multi-user permissions, or secure remote access. Plugin execution remains disabled through HTTP. Do not expose the Flask dashboard to the public internet.
 
+## Cross-platform core installer (Python 3.11+)
+
+`python install.py` works on Windows, macOS, Linux and Raspberry Pi OS with suitable Python availability. On Windows, use `py -3.11 install.py` or newer. Run the created `.venv/Scripts/python.exe` on Windows and `.venv/bin/python` on Unix. The portable base includes Flask plus optional `psutil` system health; large AI packages are still optional (`python install.py --with-ai`). No elevated privileges are required. The portable dashboard binds to `127.0.0.1`; do not expose it to the internet.
+
+**Coverage:** Windows/macOS can run local dashboard, persistent monitor health samples and local authentication, but **native Windows Event Log and macOS unified log ingestion are not implemented yet**. Linux and Raspberry Pi OS can additionally use text-based SSH log ingestion, systemd user services and opt-in notify-send notifications. Windows native users should not run the `.sh` installer; use `install.py`.
+
 ## Install (Python 3.11+)
 
 ```bash
