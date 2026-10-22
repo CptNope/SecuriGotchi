@@ -38,9 +38,9 @@ def connect():
     fd = os.open(path, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
         info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+        if not stat.S_ISREG(info.st_mode) or (os.name != 'nt' and info.st_uid != os.getuid()):
             raise RuntimeError("Monitor database must be a regular file owned by this user")
-        if stat.S_IMODE(info.st_mode) & 0o077:
+        if os.name != 'nt' and stat.S_IMODE(info.st_mode) & 0o077:
             raise RuntimeError("Monitor database must have owner-only permissions (0600)")
     finally:
         os.close(fd)
