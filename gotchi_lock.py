@@ -3,13 +3,23 @@ from contextlib import contextmanager
 import os
 import stat
 from gotchi_auth import data_dir
+import threading
+
+_ACTIVE_LOCKS = set()
+_LOCK_GUARD = threading.Lock()
 
 
 @contextmanager
 def exclusive_watch_lock():
     path = data_dir() / "monitor-watch.lock"
     fd = os.open(path, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    registered = False
     try:
+        with _LOCK_GUARD:
+            if str(path) in _ACTIVE_LOCKS:
+                raise RuntimeError('Another monitor watch process is already running')
+            _ACTIVE_LOCKS.add(str(path))
+            registered = True
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode):
             raise RuntimeError("Monitor lock must be a regular file")
@@ -32,4 +42,7 @@ def exclusive_watch_lock():
                 raise RuntimeError("Another monitor watch process is already running") from exc
         yield
     finally:
+        if registered:
+            with _LOCK_GUARD:
+                _ACTIVE_LOCKS.discard(str(path))
         os.close(fd)
