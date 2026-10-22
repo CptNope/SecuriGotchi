@@ -48,7 +48,7 @@ def connect():
     conn.row_factory = sqlite3.Row
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS cursors (
-            path TEXT PRIMARY KEY, device INTEGER NOT NULL, inode INTEGER NOT NULL,
+            path TEXT PRIMARY KEY, device INTEGER NOT NULL, inode TEXT NOT NULL,
             offset INTEGER NOT NULL
         );
         CREATE TABLE IF NOT EXISTS events (
@@ -125,7 +125,7 @@ def _consume_new(conn, path):
         if previous is None:
             # Never interpret old log history as new attacks on first startup.
             start, discontinuity, skipped = info.st_size, False, 0
-        elif previous["device"] != info.st_dev or previous["inode"] != info.st_ino or info.st_size < previous["offset"]:
+        elif previous["device"] != info.st_dev or str(previous["inode"]) != str(info.st_ino) or info.st_size < previous["offset"]:
             start, discontinuity, skipped = max(0, info.st_size - MAX_READ_BYTES), True, max(0, info.st_size - MAX_READ_BYTES)
         else:
             start, discontinuity, skipped = previous["offset"], False, 0
@@ -153,7 +153,7 @@ def _consume_new(conn, path):
             "INSERT INTO cursors(path,device,inode,offset) VALUES (?,?,?,?) "
             "ON CONFLICT(path) DO UPDATE SET device=excluded.device,"
             "inode=excluded.inode,offset=excluded.offset",
-            (source, info.st_dev, info.st_ino, new_offset),
+            (source, info.st_dev, str(info.st_ino), new_offset),
         )
         if previous is None:
             return [], 0
