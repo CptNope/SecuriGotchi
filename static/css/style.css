@@ -37,3 +37,33 @@ button:focus-visible,input:focus-visible{outline:3px solid #f4b95b;outline-offse
 .trend-chart{display:flex;align-items:flex-end;gap:3px;min-height:92px;padding:10px 0;border-bottom:1px solid #47616c}.trend-bar{flex:1;min-width:2px;background:#62e6b4;border-radius:3px 3px 0 0}
 
 .ai-panel select{width:100%;padding:11px;background:#08151e;border:1px solid #466773;border-radius:9px;color:#e7f6f2;margin-bottom:13px}.ai-panel button{margin:7px 7px 7px 0}.ai-report{white-space:pre-wrap;overflow-wrap:anywhere;max-height:450px;overflow:auto;line-height:1.6;margin:12px 0}
+
+
+/* ClockworkPi uConsole: compact landscape 1280x720 and portrait 720x1280.
+   CSS adapts to viewport dimensions without assuming a hardware fingerprint.
+   The page stays scrollable; no forced fullscreen or device-specific scripts. */
+@media (min-width: 801px) and (max-height: 800px) {
+  .shell{width:min(1260px,calc(100% - 24px))}
+  .masthead{padding:10px 0}
+  .dashboard{padding-block:12px;gap:12px}
+  .panel{padding:13px;border-radius:12px}
+  .panel h2{margin-bottom:10px}
+  .statgrid{gap:8px}
+  .stat{padding:9px}
+  .stat strong{font-size:1.2rem}
+  .gotchi-stage{gap:18px;min-height:115px}
+  .gotchi-sprite{transform-origin:center;scale:.82;margin:-9px}
+  .log{max-height:160px}
+  .ai-report{max-height:220px}
+}
+@media (max-width:800px) {
+  .dashboard{gap:12px}
+  .gotchi-stage{gap:14px}
+  .gotchi-panel .hint{font-size:.8rem}
+}
+@media (pointer:coarse) {
+  button, .ai-panel select, input{min-height:44px}
+}
+@media (prefers-reduced-motion:reduce){
+  .gotchi-sprite{animation:none}
+}

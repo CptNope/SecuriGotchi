@@ -139,3 +139,29 @@ session-key, collector and optional integration health report. Use
 read-only OS-log and local Ollama probes are **opt-in** with
 `--probe-logs --probe-ollama`. It does not perform installation or
 auto-remediation. See [Setup Doctor guide](docs/setup-doctor.md).
+
+
+## ClockworkPi uConsole CM4
+
+The core dashboard and monitoring collector run on a supported 64-bit Linux
+image for the **ClockworkPi uConsole with Raspberry Pi Compute Module 4**.
+The compact dashboard adapts to the handheld's 1280×720 landscape screen and
+a rotated/narrow viewport. No hardware firmware or kernel is modified.
+
+On the uConsole, run:
+
+```bash
+python3 --version  # Python 3.11+ required
+python3 install.py
+.venv/bin/python gotchi_doctor.py --device uconsole-cm4
+.venv/bin/python gotchi_auth.py init-admin
+.venv/bin/python gotchi_webui.py
+```
+
+In a separate terminal, start the local monitor using
+`.venv/bin/python gotchi_monitor.py watch --interval 60 --source auto`.
+The explicit `--device` flag selects the uConsole profile because the CM4
+board identifier alone cannot prove which enclosure it is installed in.
+Optional ChromaDB and large local AI models are **not** installed by default,
+which helps on limited ARM storage, RAM and battery power. For troubleshooting
+and display tips see [uConsole CM4 setup](docs/uconsole-cm4.md).

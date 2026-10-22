@@ -22,6 +22,7 @@ import sys
 import time
 
 from gotchi_platform import default_data_dir, describe_platform, ssh_text_log_candidates
+from gotchi_uconsole import profile_checks
 
 ALLOWED_STATUSES = ("pass", "warning", "fail", "not_checked")
 MIN_PYTHON = (3, 11)
@@ -135,7 +136,7 @@ def _ollama_check(probe):
                  "Pull a compatible model locally if you want AI incident explanations" if not count else "")
 
 
-def run_checks(probe_ollama=False, probe_logs=False, now=None):
+def run_checks(probe_ollama=False, probe_logs=False, now=None, device='auto'):
     """Return machine-readable, bounded results. Never auto-fix system settings."""
     now = int(time.time()) if now is None else int(now)
     platform = describe_platform()
@@ -182,11 +183,14 @@ def run_checks(probe_ollama=False, probe_logs=False, now=None):
     checks.append(check("mcp_sdk", "pass" if mcp_available else "warning",
                         "Optional MCP SDK installed" if mcp_available else "Optional MCP SDK not installed",
                         "For trusted local MCP clients, install requirements-mcp.txt" if not mcp_available else ""))
+    device_profile, device_checks = profile_checks(device=device)
+    checks.extend(device_checks)
     statuses = {k: sum(c["status"] == k for c in checks) for k in ALLOWED_STATUSES}
     return {
         "version": 1,
         "platform": platform["os"],
         "raspberry_pi": bool(platform.get("raspberry_pi")),
+        "device_profile": device_profile,
         "checks": checks,
         "summary": statuses,
         "disclaimer": "Read-only best-effort diagnostics are not a security audit.",
@@ -199,12 +203,17 @@ def main(argv=None):
     parser.add_argument("--probe-logs", action="store_true", help="Read bounded OS log samples")
     parser.add_argument("--probe-ollama", action="store_true", help="Connect to loopback Ollama (up to 3s)")
     parser.add_argument("--strict", action="store_true", help="Return nonzero for warnings or failures")
+    parser.add_argument("--device", choices=["auto", "uconsole-cm4"], default="auto",
+                        help="Explicit hardware profile; CM4 model alone does not prove uConsole chassis")
     args = parser.parse_args(argv)
-    report = run_checks(probe_ollama=args.probe_ollama, probe_logs=args.probe_logs)
+    report = run_checks(probe_ollama=args.probe_ollama, probe_logs=args.probe_logs,
+                        device=args.device)
     if args.json:
         print(json.dumps(report, indent=2))
     else:
         print("SecuriGotchi Setup Doctor —", report["platform"])
+        if report["device_profile"]:
+            print("  Device profile:", report["device_profile"])
         for item in report["checks"]:
             print(f"  {item['status'].upper():11s} {item['id']}: {item['message']}")
             if item["next_step"]:
